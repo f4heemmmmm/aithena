@@ -1,5 +1,8 @@
+"use client";
 import Link from 'next/link';
 import { Open_Sans } from 'next/font/google';
+import { useState, useEffect } from 'react';
+import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
 
 const openSans = Open_Sans({
     subsets: ['latin'],
@@ -8,32 +11,46 @@ const openSans = Open_Sans({
 });
 
 export default function Navbar() {
-  return (
-    <nav className="bg-[#101921] shadow-md py-6"> {/* Increased padding */}
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-12"> {/* Added fixed height */}
-          {/* Logo and company name */}
-          <div className="flex items-center">
-            <span className={`${openSans.className} text-3xl font-bold text-white`}>AITHENA</span>
-          </div>
-          
-          {/* Navigation links */}
-          <div className="flex items-center space-x-8 gap-3"> {/* Increased spacing */}
-            <Link href="/about" className={`${openSans.className} relative group py-2 text-white text-lg font-medium  transition-colors`}>
-              About
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-            </Link>
-            {/* <Link href="" className={`${openSans.className} relative group py-2 text-white text-lg font-medium  transition-colors`}>
-              Contact
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-            </Link> */}
-            {/* <Link href="/login" className={`${openSans.className} relative group py-2 text-white text-lg font-medium transition-colors`}>
-              Login
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-            </Link> */}
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
+    const [hidden, setHidden] = useState(false);
+    const [atTop, setAtTop] = useState(true);
+    const { scrollY } = useScroll();
+
+    useMotionValueEvent(scrollY, "change", (latest) => {
+        const previous = scrollY.getPrevious();
+        if (latest > previous && latest > 150) {
+            setHidden(true);
+        } else {
+            setHidden(false);
+        }
+        setAtTop(latest < 50);
+    });
+
+    return (
+        <motion.nav
+            variants={{
+                visible: { y: 0, opacity: 1 },
+                hidden: { y: "-100%", opacity: 0 },
+            }}
+            animate={hidden ? "hidden" : "visible"}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+                atTop ? 'bg-[#101921]' : 'bg-[#101921]/95 backdrop-blur-md'
+            } shadow-md py-6`}
+        >
+            <div className="container mx-auto px-4">
+                <div className="flex justify-between items-center h-12">
+                    <div className="flex items-center">
+                        <span className={`${openSans.className} text-3xl font-bold text-white`}>AITHENA</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-8 gap-3">
+                        <Link href="/about" className={`${openSans.className} relative group py-2 text-white text-lg font-medium transition-colors`}>
+                            About
+                            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </motion.nav>
+    );
 }

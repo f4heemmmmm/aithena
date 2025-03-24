@@ -104,7 +104,7 @@ export default function UseCases() {
     };
 
     return (
-        <section className="py-10 sm:py-16 md:py-20 bg-[#FAF9F6] border-t border-gray-100">
+        <section className="py-10 sm:py-16 md:py-20 bg-[#ffffff] border-t border-gray-100">
             <div className="container mx-auto px-4 max-w-[1920px]">
                 <div className="flex flex-col items-center mb-8 sm:mb-12 md:mb-16">
                     <h2 className={`${playfair.className} text-gray-950 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-thin mb-3`}>
@@ -148,7 +148,6 @@ export default function UseCases() {
                 <div 
                     ref={containerRef}
                     className="bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative mx-auto max-w-[98%] sm:max-w-[95%] md:max-w-[90%]"
-                    style={{ minHeight: '650px' }} // Ensure minimum height on all devices
                 >
                     <AnimatePresence initial={false} custom={direction} mode="wait">
                         <motion.div
@@ -166,25 +165,29 @@ export default function UseCases() {
                                 x: { type: "spring", stiffness: 500, damping: 30 },
                                 opacity: { duration: 0.1 }
                             }}
-                            className="w-full h-full relative" // Changed from absolute to relative
+                            className="w-full relative"
                         >
                             {useCases
                                 .filter(useCase => useCase.id === activeTab)
                                 .map(useCase => (
                                     <div key={useCase.id} className="flex flex-col md:flex-row">
-                                        <div className="w-full h-64 sm:h-72 md:h-[400px] lg:h-[500px] md:w-1/2 lg:w-3/5 relative">
-                                            <Image
-                                                src={useCase.image}
-                                                alt={`${useCase.title} legal solutions`}
-                                                className="w-full h-full object-cover"
-                                                width={1200}    
-                                                height={800}    
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent md:bg-gradient-to-l md:from-black/60 md:to-transparent" />
-                                            <div className="absolute top-4 left-4 md:hidden">
-                                                <span className="bg-blue-500 text-black px-3 py-1 rounded text-xs font-medium">
-                                                    {useCase.title}
-                                                </span>
+                                        {/* Fixed: Image container now maintains full height with absolute positioning */}
+                                        <div className="w-full md:w-1/2 lg:w-3/5 relative">
+                                            <div className="h-64 sm:h-72 md:h-auto md:absolute md:inset-0">
+                                                <Image
+                                                    src={useCase.image}
+                                                    alt={`${useCase.title} legal solutions`}
+                                                    className="w-full h-full object-cover"
+                                                    fill={true}
+                                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                                    priority
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent md:bg-gradient-to-l md:from-black/60 md:to-transparent" />
+                                                <div className="absolute top-4 left-4 md:hidden">
+                                                    <span className="bg-blue-500 text-black px-3 py-1 rounded text-xs font-medium">
+                                                        {useCase.title}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="w-full md:w-1/2 lg:w-2/5 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center">
@@ -193,7 +196,6 @@ export default function UseCases() {
                                             </h3>
                                             <div className="w-16 sm:w-20 md:w-24 h-1 bg-blue-500 mb-4 sm:mb-5 md:mb-6 rounded-full"></div>
                                             
-                                            {/* Updated description rendering with dangerouslySetInnerHTML */}
                                             <div 
                                                 className={`${openSans.className} text-sm sm:text-base text-gray-900 leading-relaxed sm:leading-[1.8rem] md:leading-[2rem] description-content`}
                                                 dangerouslySetInnerHTML={{ __html: useCase.description }}
