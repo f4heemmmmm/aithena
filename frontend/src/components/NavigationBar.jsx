@@ -29,7 +29,7 @@ export default function NavigationBar() {
 
     const scrollToSection2 = useCallback((e) => {
         e.preventDefault();
-        const section2 = document.getElementById("about");
+        const section2 = document.getElementById("section-2");
         if (section2) {
             section2.scrollIntoView({ behavior: "smooth", block: "start" });
         }

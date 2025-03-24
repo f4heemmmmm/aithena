@@ -36,7 +36,7 @@ const FeatureCard = ({ icon, title, description, delay }) => {
   );
 };
 
-export default function Description() {
+export default function Section2() {
   const [isVisible, setIsVisible] = useState(false);
   
   useEffect(() => {

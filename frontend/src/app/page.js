@@ -1,8 +1,7 @@
-import UseCases from "@/components/UseCases";
-import Description from "@/components/Description";
-import ThoughtPieces from "@/components/ThoughtPieces";
-import Hero from "@/components/Hero";
-import React from "react";
+import Section1 from "@/components/Section1";
+import Section2 from "@/components/Section2";
+import Section3 from "@/components/Section3";
+import Section4 from "@/components/Section4";
 
 export const metadata = {
   title: 'Legal AI Assistant | Empowering Legal Professionals',
