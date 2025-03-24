@@ -1,5 +1,5 @@
 import Navbar from "@/components/NavBar";
-import './globals.css'; // Add this import
+import './globals.css';
 
 export const metadata = {
     title: "AITHENA | Legal AI Assistant",
