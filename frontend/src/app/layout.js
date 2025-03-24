@@ -14,7 +14,7 @@ export const metadata = {
           </header>
           <main>
             {children}
-          </main>
+          </main>å
         </body>
       </html>
     );
