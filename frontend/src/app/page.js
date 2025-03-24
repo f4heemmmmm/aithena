@@ -4,17 +4,17 @@ import Section3 from "@/components/Section3";
 import Section4 from "@/components/Section4";
 
 export const metadata = {
-  title: 'Legal AI Assistant | Empowering Legal Professionals',
+  title: 'AITHENA',
   description: 'AI-powered assistance for legal professionals',
 }
 
 export default function Home() {
-  return (
-    <main>
-      <Hero />
-      <Description />
-      <ThoughtPieces />
-      <UseCases />
-    </main>
-  );
-}
+    return (
+        <main>
+            <Section1 />
+            <Section2 />
+            <Section3 />
+            <Section4 />
+        </main>
+    );
+};
