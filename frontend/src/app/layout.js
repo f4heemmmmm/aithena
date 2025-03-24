@@ -1,3 +1,5 @@
+import Navbar from "@/components/NavBar";
+
 export const metadata = {
     title: "AITHENA | Legal AI Assistant",
     description: "AI-powered assistance for legal professionals",
