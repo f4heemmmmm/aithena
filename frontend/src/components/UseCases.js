@@ -1,0 +1,247 @@
+"use client";
+import { useState, useRef } from 'react';
+import { Playfair_Display, Open_Sans } from 'next/font/google';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Initialize fonts
+const playfair = Playfair_Display({
+    subsets: ['latin'],
+    weight: ['400', '500', '700'],
+    display: 'swap',
+});
+
+const openSans = Open_Sans({
+    subsets: ['latin'],
+    weight: ['300', '400', '500', '600', '700'],
+    display: 'swap',
+});
+
+// Use case content - production data
+const useCases = [
+    {
+        id: 1,
+        tab_title: "Case Lookup",
+        title: "Accurate Lookups",
+        image: "/images/use-case.png",
+        description: `
+            <p>Say goodbye to hours of manual searching. AITHENA's advanced AI engine scours vast databases to find the most relevant cases for you in seconds. Whether you're searching by keywords, case details, or legal precedents, AITHENA ensures you get the results that matter most, tailored to your needs.</p>
+            <ul>
+              <li>⚡ <strong>Advanced AI-Powered Search:</strong> Locate cases in seconds based on keywords, phrases, or legal concepts.</li>
+              <li>✅ <strong>Relevant and Reliable Results:</strong> Eliminate irrelevant data and focus only on what helps your case.</li>
+              <li>🚀 <strong>Streamlined Workflow:</strong> Spend less time searching and more time strategizing.</li>
+            </ul>
+        `,
+    },
+    {
+        id: 2,
+        tab_title: "Info Extraction",
+        title: "Precision at your Fingertips",
+        image: "/images/use-case2.png",
+        description: `
+            <p>AITHENA's NER feature extracts key entities from complex legal documents, allowing you to quickly identify the most relevant information and make data-driven decisions.</p>
+            <ul>
+              <li>🧠 <strong>Automated Entity Extraction:</strong> Identify names, organizations, dates, locations, and more in seconds.</li>
+              <li>✅ <strong>Accuracy You Can Trust:</strong> AI-powered recognition ensures you don't miss critical details.</li>
+              <li>⚖️ <strong>Legal-Specific Insights:</strong> Tailored for the legal industry, with focus on case-relevant entities.</li>
+            </ul>
+        `,
+    },
+    {
+        id: 3,
+        tab_title: "Summary",
+        title: "Turn Complexity into Clarity",
+        image: "/images/use-case3.png",
+        description: `
+            <p>Say goodbye to wading through long legal texts. AITHENA's AI-driven summarization extracts the most critical insights from lengthy cases, making it easier for you to focus on what matters.</p>
+            <ul>
+              <li>📝 <strong>Concise Case Summaries:</strong> Key takeaways and highlights from long documents in just seconds.</li>
+              <li>🔍 <strong>Improve Comprehension:</strong> Understand complex cases faster with AI-powered clarity.</li>
+              <li>🚀 <strong>Tailored for Legal Professionals:</strong> Get summaries tailored to your specific needs, whether for litigation, contracts, or compliance.</li>
+            </ul>
+        `,
+    },
+    
+];
+
+export default function UseCases() {
+    const [activeTab, setActiveTab] = useState(1);
+    const [direction, setDirection] = useState(0);
+    const containerRef = useRef(null);
+    
+    // Set transition direction based on tab navigation
+    const handleTabChange = (newTabId) => {
+        if (newTabId === activeTab) return;
+        setDirection(newTabId > activeTab ? 1 : -1);
+        setActiveTab(newTabId);
+    };
+
+    // Animation variants for framer-motion
+    const variants = {
+        enter: (direction) => ({
+            x: direction > 0 ? '100%' : '-100%',
+            opacity: 0
+        }),
+        center: {
+            x: 0,
+            opacity: 1
+        },
+        exit: (direction) => ({
+            x: direction < 0 ? '100%' : '-100%',
+            opacity: 0
+        })
+    };
+
+    const handleDragEnd = (event, info) => {
+        const swipeThreshold = 50;
+        if (Math.abs(info.offset.x) > swipeThreshold) {
+            const direction = info.offset.x > 0 ? -1 : 1;
+            const nextTab = activeTab + direction;
+            if (nextTab >= 1 && nextTab <= useCases.length) {
+                handleTabChange(nextTab);
+            }
+        }
+    };
+
+    return (
+        <section className="py-20 bg-[#FAF9F6] border-t border-gray-100">
+            <div className="container mx-auto px-4 max-w-[1920px]"> {/* Increased max width */}
+                <div className="flex flex-col items-center mb-16">
+                    <h2 className={`${playfair.className} text-5xl md:text-6xl font-thin mb-3`}>
+                        Use Cases
+                    </h2>
+                    <div className="w-24 h-1 bg-blue-500 rounded-full"></div>
+                </div>
+
+                {/* Tab navigation */}
+                <div className="flex justify-center mb-12">
+                    <div className="inline-flex rounded-[12px] shadow-lg p-1.5 bg-gray-50 border border-gray-200">
+                        {useCases.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                aria-pressed={activeTab === tab.id}
+                                aria-controls={`tab-panel-${tab.id}`}
+                                id={`tab-${tab.id}`}
+                                className={`
+                                    relative px-6 py-3 rounded-md transition-all duration-300 md:min-w-32
+                                    ${openSans.className} text-sm font-medium
+                                    ${activeTab === tab.id 
+                                        ? 'bg-blue-300/40 text-black shadow-sm' 
+                                        : 'text-gray-700 hover:bg-gray-200'}
+                                `}
+                            >
+                                {tab.tab_title}
+                                {activeTab === tab.id && (
+                                    <motion.span 
+                                        layoutId="tabIndicator"
+                                        className="absolute bottom-1 left-0 right-0 mx-auto w-12 h-0.5 bg-black rounded-full"
+                                        initial={false}
+                                    />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Tab content with refined styling */}
+                <div 
+                    ref={containerRef}
+                    className="bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative h-[680px] mx-auto max-w-[90%]" 
+                >
+                    <AnimatePresence initial={false} custom={direction} mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            custom={direction}
+                            variants={variants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.2}
+                            onDragEnd={handleDragEnd}
+                            transition={{
+                                x: { type: "spring", stiffness: 500, damping: 30 },
+                                opacity: { duration: 0.1 }
+                            }}
+                            className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
+                        >
+                            {useCases
+                                .filter(useCase => useCase.id === activeTab)
+                                .map(useCase => (
+                                    <div key={useCase.id} className="md:flex h-full">
+                                        <div className="md:w-3/5 relative h-64 md:h-full"> {/* Increased width from 1/2 to 3/5 */}
+                                            <Image
+                                                src={useCase.image}
+                                                alt={`${useCase.title} legal solutions`}
+                                                className="w-full h-full object-cover"
+                                                width={1200}    
+                                                height={800}    
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent md:bg-gradient-to-l" />
+                                            <div className="absolute top-6 left-6 md:hidden">
+                                                <span className="bg-blue-500 text-black px-3 py-1 rounded text-xs font-medium">
+                                                    {useCase.title}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="md:w-2/5 p-8 md:p-12 flex flex-col justify-center"> {/* Adjusted width to match */}
+                                            <h3 className={`${playfair.className} text-3xl md:text-4xl font-light mb-4 text-gray-800`}>
+                                                {useCase.title}
+                                            </h3>
+                                            <div className="w-24 h-1 bg-blue-500 mb-6 rounded-full"></div>
+                                            
+                                            {/* Updated description rendering with dangerouslySetInnerHTML */}
+                                            <div 
+                                                className={`${openSans.className} text-gray-900 leading-[2rem] description-content`}
+                                                dangerouslySetInnerHTML={{ __html: useCase.description }}
+                                            />
+
+                                        </div>
+                                    </div>
+                                ))}
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+                
+                {/* Additional visual element */}
+                <div className="mt-12 flex justify-center">
+                    <div className="flex space-x-2">
+                        {useCases.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabChange(tab.id)}
+                                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                    activeTab === tab.id ? 'bg-blue-500 w-6' : 'bg-gray-300 hover:bg-gray-400'
+                                }`}
+                                aria-label={`Switch to ${tab.title}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Add global styles to ensure lists look good */}
+            <style jsx global>{`
+                .description-content ul {
+                    margin-top: 1rem;
+                    margin-bottom: 1rem;
+                }
+                .description-content li {
+                    margin-bottom: 0.75rem;
+                    list-style-type: none;
+                    position: relative;
+                    padding-left: 0.5rem;
+                }
+                .description-content strong {
+                    color: #1e40af; /* dark blue for emphasis */
+                    font-weight: 600;
+                }
+                .description-content p {
+                    margin-bottom: 1rem;
+                }
+            `}</style>
+        </section>
+    );
+}
