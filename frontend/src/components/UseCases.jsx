@@ -104,18 +104,18 @@ export default function UseCases() {
     };
 
     return (
-        <section className="py-20 bg-[#FAF9F6] border-t border-gray-100">
-            <div className="container mx-auto px-4 max-w-[1920px]"> {/* Increased max width */}
-                <div className="flex flex-col items-center mb-16">
-                    <h2 className={`${playfair.className} text-gray-950 text-5xl md:text-6xl font-thin mb-3`}>
+        <section className="py-10 sm:py-16 md:py-20 bg-[#FAF9F6] border-t border-gray-100">
+            <div className="container mx-auto px-4 max-w-[1920px]">
+                <div className="flex flex-col items-center mb-8 sm:mb-12 md:mb-16">
+                    <h2 className={`${playfair.className} text-gray-950 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-thin mb-3`}>
                         Use Cases
                     </h2>
-                    <div className="w-24 h-1 bg-blue-500 rounded-full"></div>
+                    <div className="w-16 sm:w-20 md:w-24 h-1 bg-blue-500 rounded-full"></div>
                 </div>
 
-                {/* Tab navigation */}
-                <div className="flex justify-center mb-12">
-                    <div className="inline-flex rounded-[12px] shadow-lg p-1.5 bg-gray-50 border border-gray-200">
+                {/* Tab navigation with improved small screen layout */}
+                <div className="flex justify-center mb-8 sm:mb-10 md:mb-12 overflow-x-auto max-w-full px-2">
+                    <div className="inline-flex rounded-[12px] shadow-lg p-1 sm:p-1.5 bg-gray-50 border border-gray-200">
                         {useCases.map((tab) => (
                             <button
                                 key={tab.id}
@@ -124,8 +124,8 @@ export default function UseCases() {
                                 aria-controls={`tab-panel-${tab.id}`}
                                 id={`tab-${tab.id}`}
                                 className={`
-                                    relative px-6 py-3 rounded-md transition-all duration-300 md:min-w-32
-                                    ${openSans.className} text-sm font-medium
+                                    relative px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-md transition-all duration-300 whitespace-nowrap
+                                    ${openSans.className} text-xs sm:text-sm font-medium
                                     ${activeTab === tab.id 
                                         ? 'bg-blue-300/40 text-black shadow-sm' 
                                         : 'text-gray-700 hover:bg-gray-200'}
@@ -135,7 +135,7 @@ export default function UseCases() {
                                 {activeTab === tab.id && (
                                     <motion.span 
                                         layoutId="tabIndicator"
-                                        className="absolute bottom-1 left-0 right-0 mx-auto w-12 h-0.5 bg-black rounded-full"
+                                        className="absolute bottom-1 left-0 right-0 mx-auto w-8 sm:w-10 md:w-12 h-0.5 bg-black rounded-full"
                                         initial={false}
                                     />
                                 )}
@@ -144,10 +144,11 @@ export default function UseCases() {
                     </div>
                 </div>
 
-                {/* Tab content with refined styling */}
+                {/* Tab content with fixed positioning and responsive heights */}
                 <div 
                     ref={containerRef}
-                    className="bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative h-[680px] mx-auto max-w-[90%]" 
+                    className="bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative mx-auto max-w-[98%] sm:max-w-[95%] md:max-w-[90%]"
+                    style={{ minHeight: '650px' }} // Ensure minimum height on all devices
                 >
                     <AnimatePresence initial={false} custom={direction} mode="wait">
                         <motion.div
@@ -165,13 +166,13 @@ export default function UseCases() {
                                 x: { type: "spring", stiffness: 500, damping: 30 },
                                 opacity: { duration: 0.1 }
                             }}
-                            className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"
+                            className="w-full h-full relative" // Changed from absolute to relative
                         >
                             {useCases
                                 .filter(useCase => useCase.id === activeTab)
                                 .map(useCase => (
-                                    <div key={useCase.id} className="md:flex h-full">
-                                        <div className="md:w-3/5 relative h-64 md:h-full"> {/* Increased width from 1/2 to 3/5 */}
+                                    <div key={useCase.id} className="flex flex-col md:flex-row">
+                                        <div className="w-full h-64 sm:h-72 md:h-[400px] lg:h-[500px] md:w-1/2 lg:w-3/5 relative">
                                             <Image
                                                 src={useCase.image}
                                                 alt={`${useCase.title} legal solutions`}
@@ -179,25 +180,24 @@ export default function UseCases() {
                                                 width={1200}    
                                                 height={800}    
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent md:bg-gradient-to-l" />
-                                            <div className="absolute top-6 left-6 md:hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent md:bg-gradient-to-l md:from-black/60 md:to-transparent" />
+                                            <div className="absolute top-4 left-4 md:hidden">
                                                 <span className="bg-blue-500 text-black px-3 py-1 rounded text-xs font-medium">
                                                     {useCase.title}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="md:w-2/5 p-8 md:p-12 flex flex-col justify-center"> {/* Adjusted width to match */}
-                                            <h3 className={`${playfair.className} text-3xl md:text-4xl font-light mb-4 text-gray-800`}>
+                                        <div className="w-full md:w-1/2 lg:w-2/5 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center">
+                                            <h3 className={`${playfair.className} text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-light mb-3 md:mb-4 text-gray-800`}>
                                                 {useCase.title}
                                             </h3>
-                                            <div className="w-24 h-1 bg-blue-500 mb-6 rounded-full"></div>
+                                            <div className="w-16 sm:w-20 md:w-24 h-1 bg-blue-500 mb-4 sm:mb-5 md:mb-6 rounded-full"></div>
                                             
                                             {/* Updated description rendering with dangerouslySetInnerHTML */}
                                             <div 
-                                                className={`${openSans.className} text-gray-900 leading-[2rem] description-content`}
+                                                className={`${openSans.className} text-sm sm:text-base text-gray-900 leading-relaxed sm:leading-[1.8rem] md:leading-[2rem] description-content`}
                                                 dangerouslySetInnerHTML={{ __html: useCase.description }}
                                             />
-
                                         </div>
                                     </div>
                                 ))}
@@ -206,14 +206,14 @@ export default function UseCases() {
                 </div>
                 
                 {/* Additional visual element */}
-                <div className="mt-12 flex justify-center">
+                <div className="mt-6 sm:mt-8 md:mt-12 flex justify-center">
                     <div className="flex space-x-2">
                         {useCases.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
                                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                                    activeTab === tab.id ? 'bg-blue-500 w-6' : 'bg-gray-300 hover:bg-gray-400'
+                                    activeTab === tab.id ? 'bg-blue-500 w-4 sm:w-5 md:w-6' : 'bg-gray-300 hover:bg-gray-400'
                                 }`}
                                 aria-label={`Switch to ${tab.title}`}
                             />
@@ -225,11 +225,11 @@ export default function UseCases() {
             {/* Add global styles to ensure lists look good */}
             <style jsx global>{`
                 .description-content ul {
-                    margin-top: 1rem;
-                    margin-bottom: 1rem;
+                    margin-top: 0.75rem;
+                    margin-bottom: 0.75rem;
                 }
                 .description-content li {
-                    margin-bottom: 0.75rem;
+                    margin-bottom: 0.5rem;
                     list-style-type: none;
                     position: relative;
                     padding-left: 0.5rem;
@@ -239,7 +239,20 @@ export default function UseCases() {
                     font-weight: 600;
                 }
                 .description-content p {
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.75rem;
+                }
+                
+                @media (min-width: 640px) {
+                    .description-content ul {
+                        margin-top: 1rem;
+                        margin-bottom: 1rem;
+                    }
+                    .description-content li {
+                        margin-bottom: 0.75rem;
+                    }
+                    .description-content p {
+                        margin-bottom: 1rem;
+                    }
                 }
             `}</style>
         </section>
