@@ -1,4 +1,5 @@
 import Navbar from "@/components/NavBar";
+import './globals.css'; // Add this import
 
 export const metadata = {
     title: "AITHENA | Legal AI Assistant",
@@ -14,7 +15,7 @@ export const metadata = {
           </header>
           <main>
             {children}
-          </main>å
+          </main>
         </body>
       </html>
     );

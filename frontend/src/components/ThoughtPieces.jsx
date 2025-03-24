@@ -81,7 +81,7 @@ export default function ThoughtPieces() {
     return (
         <section className="py-16 bg-gray-50 min-h-screen">
             <div className="container mx-auto px-4 gap-4 flex flex-col">
-                <h2 className={`${playfair.className} text-6xl font-thin mb-12 text-right`}>
+                <h2 className={`${playfair.className} text-6xl font-thin mb-12 text-right text-gray-800`}>
                     Thought Pieces
                 </h2>
 

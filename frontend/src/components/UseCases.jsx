@@ -107,7 +107,7 @@ export default function UseCases() {
         <section className="py-20 bg-[#FAF9F6] border-t border-gray-100">
             <div className="container mx-auto px-4 max-w-[1920px]"> {/* Increased max width */}
                 <div className="flex flex-col items-center mb-16">
-                    <h2 className={`${playfair.className} text-5xl md:text-6xl font-thin mb-3`}>
+                    <h2 className={`${playfair.className} text-gray-950 text-5xl md:text-6xl font-thin mb-3`}>
                         Use Cases
                     </h2>
                     <div className="w-24 h-1 bg-blue-500 rounded-full"></div>
