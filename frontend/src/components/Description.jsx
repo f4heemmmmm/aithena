@@ -80,7 +80,7 @@ export default function Description() {
   const partners = [1, 2, 3, 4];
 
   return (
-    <section id="learn-more" className="py-16 min-h-screen bg-[#101921]">
+    <section id="section-2" className="py-16 min-h-screen bg-[#101921]">
       <div className="container mx-auto px-4 flex flex-col gap-2">
         <motion.div 
           className="mb-16 flex flex-col gap-4"
