@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Open_Sans } from 'next/font/google';
 import { useState, useEffect } from 'react';
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
+import { useCallback } from 'react';
 
 const openSans = Open_Sans({
     subsets: ['latin'],
@@ -25,6 +26,17 @@ export default function Navbar() {
         setAtTop(latest < 50);
     });
 
+    const scrollToLearnMore = useCallback((e) => {
+        e.preventDefault();
+        const learnMoreSection = document.getElementById('learn-more');
+        if (learnMoreSection) {
+          learnMoreSection.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      }, []);
+
     return (
         <motion.nav
             variants={{
@@ -44,10 +56,13 @@ export default function Navbar() {
                     </div>
                     
                     <div className="flex items-center space-x-8 gap-3">
-                        <Link href="/about" className={`${openSans.className} relative group py-2 text-white text-lg font-medium transition-colors`}>
+                        <button
+                            onClick={scrollToLearnMore}
+                            className={`${openSans.className} relative group py-2 text-white text-lg font-medium transition-colors cursor-pointer`}
+                        >
                             About
                             <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </div>
