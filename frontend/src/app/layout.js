@@ -1,22 +1,22 @@
-import Navbar from "@/components/NavBar";
-import './globals.css';
+import "./globals.css";
+import NavigationBar from "@/components/NavigationBar";
 
 export const metadata = {
-    title: "AITHENA | Legal AI Assistant",
-    description: "AI-powered assistance for legal professionals",
-  };
-  
-  export default function RootLayout({ children }) {
+    title: 'AITHENA',
+    description: 'AI-powered assistance for legal professionals',
+};
+
+export default function RootLayout({ childern }) {
     return (
-      <html lang="en">
-        <body className="min-h-screen">
-          <header>
-            <Navbar />
-          </header>
-          <main>
-            {children}
-          </main>
-        </body>
-      </html>
+        <html lang = "en">
+            <body className = "min-h-screen">
+                <header>
+                    <NavigationBar />
+                </header>
+                <main>
+                    {children}
+                </main>
+            </body>
+        </html>
     );
-  }
+};
