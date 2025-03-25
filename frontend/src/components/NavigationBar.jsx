@@ -51,9 +51,9 @@ export default function NavigationBar() {
                 <div className = "flex justify-between items-center h-15">
                     {/* LEFT NAVBAR: COMPANY NAME */}
                     <div className = "flex items-center">
-                        <span className = {`${openSans.className} text-2xl font-semibold text-white`}>
+                        <p className = {`${openSans.className} text-2xl font-semibold text-white`}>
                             Athena
-                        </span>
+                        </p>
                     </div>
                     {/* RIGHT NAVBAR: BUTTON AND LINKS */}
                     <div className = "flex items-center space-x-8 gap-3">

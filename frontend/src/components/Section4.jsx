@@ -148,8 +148,35 @@ export default function Section4() {
                 </div>
                 <div 
                     ref = {containerRef}
-                    className = "bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative mx-auto max-w-[98%] sm:max-w-[95%] md:max-w-[90%]"
+                    className = "bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative mx-auto max-w-[98%] sm:max-w-[95%] md:max-w-[90%] h-[700px] sm:h-[750px] md:h-[600px]"
                 >
+                    {/* Navigation Arrows */}
+                    <button
+                        onClick={() => activeTab > 1 && handleTabChange(activeTab - 1)}
+                        className={`absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
+                            activeTab === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white'
+                        }`}
+                        disabled={activeTab === 1}
+                        aria-label="Previous slide"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    
+                    <button
+                        onClick={() => activeTab < useCases.length && handleTabChange(activeTab + 1)}
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
+                            activeTab === useCases.length ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white'
+                        }`}
+                        disabled={activeTab === useCases.length}
+                        aria-label="Next slide"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    
                     <AnimatePresence initial = {false} custom = {direction} mode = "wait">
                         <motion.div
                             key = {activeTab}
@@ -161,16 +188,20 @@ export default function Section4() {
                             drag = "x"
                             dragConstraints = {{ left: 0, right: 0 }}
                             dragElastic = {0.2}
+                            dragMomentum = {true}
                             onDragEnd = {handleDragAtEnd}
-                            transition = {{ x: { type: "spring", stiffness: 500, damping: 30 }, opacity: { duration: 0.1 } }}
-                            className = "w-full relative"
+                            transition = {{ 
+                                x: { type: "spring", stiffness: 500, damping: 30 }, 
+                                opacity: { duration: 0.1 } 
+                            }}
+                            className = "w-full h-full relative cursor-grab active:cursor-grabbing"
                         >
                             {useCases
                                 .filter(useCase => useCase.id === activeTab)
                                 .map(useCase => (
-                                    <div key = {useCase.id} className = "flex flex-col md:flex-row">
-                                        <div className = "w-full md:w-1/2 lg:w-3/5 relative">
-                                            <div className = "h-64 sm:h-72 md:h-auto md:absolute md:inset-0">
+                                    <div key = {useCase.id} className = "flex flex-col md:flex-row h-full">
+                                        <div className = "w-full md:w-1/2 lg:w-3/5 relative h-[300px] md:h-full">
+                                            <div className = "h-full relative">
                                                 <Image
                                                     src = {useCase.image}
                                                     alt = {`${useCase.title} legal solutions`}
@@ -187,7 +218,7 @@ export default function Section4() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className = "w-full md:w-1/2 lg:w-2/5 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center">
+                                        <div className = "w-full md:w-1/2 lg:w-2/5 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center h-full overflow-y-auto">
                                             <h3 className = {`${playfair.className} text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-light mb-3 md:mb-4 text-gray-800`}>
                                                 {useCase.title}
                                             </h3>

@@ -21,7 +21,7 @@ const openSans = Open_Sans({
 const FeatureCard = ({ icon, title, description, delay }) => {
     return (
         <motion.div
-            className = "flex flex-col items-start w-full mdL:w-1/3 px-6 mb-12 md:mb-0 transition-all duration-300"
+            className = "flex flex-col items-start w-full md:w-1/3 px-6 mb-12 md:mb-0 transition-all duration-300"
             initial = {{ opacity: 0, y: 20 }}
             whileInView = {{ opacity: 1, y: 0 }}
             transition = {{ duration: 0.5, delay: delay }}
