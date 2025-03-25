@@ -17,7 +17,7 @@ const openSans = Open_Sans({
     subsets: ['latin'],
     weight: ['300', '400', '500', '600', '700'],
     display: 'swap',
-  });
+});
 
 // Use Case content
 const useCases = [
@@ -108,7 +108,7 @@ export default function Section4() {
     };
 
     return (
-        <section className = "section-4 py-10 sm:py-16 md:py-20 bg-white border-t border-gray-100">
+        <section id = "section-4" className = "py-10 sm:py-16 md:py-20 bg-white border-t border-gray-100">
             <div className = "container mx-auto px-4 max-w-[1920px]">
                 <div className = "flex flex-col items-center mb-8 sm:mb-12 md:md-16">
                     <h2 className = {`${playfair.className} text-gray-950 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-thin mb-3`}>
