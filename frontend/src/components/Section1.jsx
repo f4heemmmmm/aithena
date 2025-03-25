@@ -43,7 +43,7 @@ export default function Section1() {
                 </h1>
                 <button
                     onClick = {scrollToSection2}
-                    className = "mt-8 rounded-[5px] px-8 py-3 text-lg font-normal transition duration-300 hover:bg-opacity-90 text-white border-white border cursor-pointer"
+                    className = "mt-6 rounded-[8px] px-6 py-2.5 text-base font-normal transition duration-300 hover:bg-opacity-90 text-white border-white border cursor-pointer"
                 >
                     Discover More
                 </button>
