@@ -71,23 +71,23 @@ export default function NavigationBar() {
             className = {`
                 fixed top-0 left-0 right-0 z-50 
                 ${atTop ? "bg-[#101921]" : "bg-[#101921]/90 backdrop-blur-md"}
-                shadow-lg py-4 md:py-6
+                shadow-lg py-3 md:py-4
             `}
         >
             <div className = "container mx-auto px-4">
                 <div className = "flex justify-between items-center">
                     <div className = "flex items-center">
-                        <p className = {`${openSans.className} text-LG md:text-2xl font-medium text-white`}>
+                        <p className = {`${openSans.className} text-base md:text-xl font-medium text-white`}>
                             Athena
                         </p>
                     </div>
-                    {/* HAMBURGER MENU FOR MOBILE */}
+                    {/* MOBILE VIEW */}
                     <button 
                         onClick = {toggleMenu}
-                        className = "md:hidden text-white p-2 z-60 relative"
+                        className = "md:hidden text-white p-1.5 z-60 relative"
                         aria-label = "Toggle menu"
                     >
-                        <div className = "w-6 h-4 relative flex flex-col justify-between">
+                        <div className = "w-5 h-3.5 relative flex flex-col justify-between">
                             <motion.span 
                                 animate = {{ 
                                     rotate: isMenuOpen ? 45 : 0,
@@ -117,8 +117,7 @@ export default function NavigationBar() {
                             />
                         </div>
                     </button>
-
-                    {/* Desktop Navigation */}
+                    {/* DESKTOP VIEW */}
                     <div className = "hidden md:flex items-center space-x-8 gap-3">
                         <button
                             onClick = {scrollToSection2}
@@ -132,7 +131,7 @@ export default function NavigationBar() {
                             <span className = "absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full" />
                         </button>
                     </div>
-                    {/* MOBILE VIEW */}
+                    {/* MOBILE VIEW ADJUSTMENTS */}
                     <AnimatePresence>
                         {isMenuOpen && (
                             <motion.div 
