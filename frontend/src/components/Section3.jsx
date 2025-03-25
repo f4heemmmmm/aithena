@@ -86,7 +86,7 @@ export default function Section3() {
     }, []);
 
     return (
-        <section id = "section-3" className = "py-16 bg-[#FAF0E6] min-h-screen">
+        <section id = "section-3" className = "py-10 sm:py-12 md:py-16 bg-[#FAF0E6]">
             <div className = "container mx-auto px-4 gap-4 flex flex-col">
                 <h2 className = {`${playfair.className} text-6xl font-thin mb-12 text-right text-gray-800`}>
                     Thought Pieces
