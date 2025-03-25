@@ -150,33 +150,31 @@ export default function Section4() {
                     ref = {containerRef}
                     className = "bg-gray-50 rounded-[15px] overflow-hidden shadow-2xl relative mx-auto max-w-[98%] sm:max-w-[95%] md:max-w-[90%] h-[700px] sm:h-[750px] md:h-[600px]"
                 >
-                    {/* Navigation Arrows */}
+                    {/* NAVIGATION ARROWS FOR TAB CONTENT */}
                     <button
-                        onClick={() => activeTab > 1 && handleTabChange(activeTab - 1)}
-                        className={`absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
+                        onClick = {() => activeTab > 1 && handleTabChange(activeTab - 1)}
+                        className = {`absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
                             activeTab === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white'
                         }`}
-                        disabled={activeTab === 1}
-                        aria-label="Previous slide"
+                        disabled = {activeTab === 1}
+                        aria-label = "Previous slide"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        <svg xmlns = "http://www.w3.org/2000/svg" className = "h-6 w-6 text-gray-800" fill = "none" viewBox = "0 0 24 24" stroke = "currentColor">
+                            <path strokeLinecap = "round" strokeLinejoin = "round" strokeWidth = {2} d = "M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    
                     <button
-                        onClick={() => activeTab < useCases.length && handleTabChange(activeTab + 1)}
-                        className={`absolute right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
+                        onClick = {() => activeTab < useCases.length && handleTabChange(activeTab + 1)}
+                        className = {`absolute right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-lg transition-all ${
                             activeTab === useCases.length ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white'
                         }`}
-                        disabled={activeTab === useCases.length}
-                        aria-label="Next slide"
+                        disabled = {activeTab === useCases.length}
+                        aria-label = "Next slide"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <svg xmlns = "http://www.w3.org/2000/svg" className = "h-6 w-6 text-gray-800" fill = "none" viewBox = "0 0 24 24" stroke = "currentColor">
+                            <path strokeLinecap = "round" strokeLinejoin = "round" strokeWidth = {2} d = "M9 5l7 7-7 7" />
                         </svg>
                     </button>
-                    
                     <AnimatePresence initial = {false} custom = {direction} mode = "wait">
                         <motion.div
                             key = {activeTab}
