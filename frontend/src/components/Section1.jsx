@@ -38,7 +38,7 @@ export default function Section1() {
                 <p className = {`${openSans.className} text-xl md:text-2xl text-white max-w-2xl font-light`}>
                     Unlock Time, Live Your Prime
                 </p>
-                <h1 className = {`${playfair.className} text-4xl md:text-5xl lg:text-8xl font-extralight text-[#FCF9E2] tracking-tight mb-4`}>
+                <h1 className = {`${playfair.className} md:text-5xl text-6xl lg:text-8xl font-extralight text-[#FCF9E2] tracking-tight mb-4`}>
                     Empowering Legal <br /> Professionals
                 </h1>
                 <button
