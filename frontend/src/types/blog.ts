@@ -1,5 +1,3 @@
-import { BlogStatistics } from "@/services/blogService";
-
 export interface BlogAuthor {
     id: string;
     first_name: string;
