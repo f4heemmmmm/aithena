@@ -118,7 +118,7 @@ const FeaturesSection: React.FC = () => {
     ];
 
     return (
-        <section className = "py-20 px-6 bg-[#FAF0E6]">
+        <section id = "features-section" className = "py-20 px-6 bg-[#FAF0E6]">
             <div className = "px-40">
                 <div className = "text-center mb-16">
                     <div className = "flex justify-center mb-12">

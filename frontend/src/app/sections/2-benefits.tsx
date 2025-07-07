@@ -34,7 +34,7 @@ export default function BenefitsSection() {
     ];
 
     return (
-        <section className = "py-20 lg:py-28 bg-white relative">
+        <section id = "benefits-section" className = "py-20 lg:py-28 bg-white relative">
             <div className = "max-w-8xl mx-auto px-10 sm:px-12 lg:px-14">
                 <div className = "text-center mb-16">
                     <h2 className = {`${dmSans.className} text-4xl lg:text-5xl font-semibold text-slate-900 mb-6`}>
