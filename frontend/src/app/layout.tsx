@@ -1,19 +1,18 @@
+"use client";
+
 import "./globals.css";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 
 import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
+import { usePathname } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-    title: "AITHENA",
-    description: "Advanced AI technology for legal professionals"
-};
-
 export default function RootLayout({children}: { children: React.ReactNode; }) {
+    const pathName = usePathname();
+    const hideFooter = pathName === "/login";
     return (
         <html lang = "en">
             <body className = {inter.className}>
@@ -22,7 +21,7 @@ export default function RootLayout({children}: { children: React.ReactNode; }) {
                     <main>
                         {children}
                     </main>
-                    <Footer />
+                    {!hideFooter && <Footer />}
                 </AuthProvider>
             </body>
         </html>

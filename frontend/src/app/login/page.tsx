@@ -4,8 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Shield, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -46,69 +46,53 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Back to Home Link */}
-        <div className="flex justify-center mb-6">
-          <Link 
-            href="/"
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Home
-          </Link>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        
 
-        {/* Logo and Title */}
-        <div className="flex flex-col items-center">
-          <div className="flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-6">
-            <Shield className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-center text-3xl font-bold text-gray-900 mb-2">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-7xl font-light text-gray-900 mb-2">
             AITHENA
-          </h2>
-          <p className="text-center text-lg text-gray-600">
-            Administrator Login
+          </h1>
+          <p className="text-sm text-gray-600 font-semibold">
+            For Administrators Only
           </p>
         </div>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
+        {/* Login Form */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
               </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter your email"
-                />
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-0 py-3 border-0 border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-gray-800 transition-all duration-200 text-gray-900"
+              />
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="password"
                   name="password"
@@ -117,74 +101,78 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter your password"
+                  className="w-full px-0 py-3 pr-12 border-0 border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-gray-800 transition-all duration-200 text-gray-900"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-all duration-300 transform hover:scale-110"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                  )}
+                  <div className="relative w-5 h-5">
+                    <Eye 
+                      className={`absolute w-5 h-5 transition-all duration-300 ease-in-out transform ${
+                        showPassword 
+                          ? 'opacity-0 scale-75 rotate-12' 
+                          : 'opacity-100 scale-100 rotate-0'
+                      }`} 
+                    />
+                    <EyeOff 
+                      className={`absolute w-5 h-5 transition-all duration-300 ease-in-out transform ${
+                        showPassword 
+                          ? 'opacity-100 scale-100 rotate-0' 
+                          : 'opacity-0 scale-75 -rotate-12'
+                      }`} 
+                    />
+                  </div>
                 </button>
               </div>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <div className="text-sm text-red-700">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-700">
                   {error}
-                </div>
+                </p>
               </div>
             )}
 
             {/* Login Button */}
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Signing in...
-                  </div>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                'Sign in'
+              )}
+            </button>
           </form>
 
           {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Demo Credentials</h3>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p><strong>Email:</strong> admin@aithena.com</p>
-              <p><strong>Password:</strong> Admin123!</p>
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-3">Demo Credentials</p>
+              <div className="text-sm text-gray-500 space-y-1 mb-4">
+                <p><span className="font-medium">Email:</span> admin@aithena.com</p>
+                <p><span className="font-medium">Password:</span> Admin123!</p>
+              </div>
+              <button
+                type="button"
+                onClick={fillDemoCredentials}
+                className="text-sm text-gray-800 hover:text-gray-600 underline transition-colors duration-200"
+              >
+                Fill demo credentials
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              Fill demo credentials
-            </button>
-          </div>
-
-          {/* Additional Info */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              This is a secure admin area. Only authorized personnel should access this page.
-            </p>
           </div>
         </div>
+        
       </div>
     </div>
   );
