@@ -1,4 +1,3 @@
-// src/services/blogService.ts
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 
 export interface BlogAuthor {
