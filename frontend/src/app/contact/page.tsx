@@ -113,8 +113,8 @@ const ContactPage: React.FC = () => {
                     "Accept": "application/json",
                 },
                 body: JSON.stringify({
-                    firstName: formData.first_name,
-                    lastName: formData.last_name,
+                    first_name: formData.first_name,
+                    last_name: formData.last_name,
                     email: formData.email,
                     message: formData.message,
                 }),
@@ -259,7 +259,7 @@ const ContactPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className = "grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div>
                         <div className = "bg-white rounded-lg shadow-sm border border-gray-100 p-8">
