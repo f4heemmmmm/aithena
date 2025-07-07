@@ -262,9 +262,9 @@ const ContactPage: React.FC = () => {
             <div className = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className = "grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div>
-                        <div className = "bg-white rounded-lg shadow-sm border border-gray-100 p-8">
+                        <div className = "bg-white rounded-xl shadow-lg border border-gray-200 p-8">
                             <div className = "mb-8">
-                                <h2 className = {`${dmSans.className} text-3xl font-thin text-gray-900 mb-3`}> Feel free to send us a message! </h2>
+                                <h2 className = {`${dmSans.className} text-3xl font-thin text-gray-900 mb-3`}> Feel free to send us a message </h2>
                                 <p className = {`${inter.className} text-gray-600 text-sm`}>
                                     Fill out the form below and we'll get back to you soon.
                                 </p>
@@ -295,7 +295,7 @@ const ContactPage: React.FC = () => {
                             <form onSubmit = {handleSubmit} className = "space-y-6">
                                 <div className = "grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label htmlFor = "first_name" className = {`${inter.className} block text-sm font-medium text-gray-700 mb-3`}>
+                                        <label htmlFor = "first_name" className = {`${inter.className} block text-base font-medium text-gray-700 mb-3`}>
                                             First Name
                                         </label>
                                         <input
@@ -315,7 +315,7 @@ const ContactPage: React.FC = () => {
                                         )}
                                     </div>
                                     <div>
-                                        <label htmlFor = "last_name" className = {`${inter.className} block text-sm font-medium text-gray-700 mb-3`}>
+                                        <label htmlFor = "last_name" className = {`${inter.className} block text-base font-medium text-gray-700 mb-3`}>
                                             Last Name
                                         </label>
                                         <input
@@ -337,7 +337,7 @@ const ContactPage: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label htmlFor = "email" className = {`${inter.className} block text-sm font-medium text-gray-700 mb-3`}>
+                                    <label htmlFor = "email" className = {`${inter.className} block text-base font-medium text-gray-700 mb-3`}>
                                         Email
                                     </label>
                                     <input
@@ -358,7 +358,7 @@ const ContactPage: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label htmlFor = "message" className = {`${inter.className} block text-sm font-medium text-gray-700 mb-3`}>
+                                    <label htmlFor = "message" className = {`${inter.className} block text-base font-medium text-gray-700 mb-3`}>
                                         Your Message
                                     </label>
                                     <textarea
@@ -408,7 +408,7 @@ const ContactPage: React.FC = () => {
                             <div className = "text-left border-b border-gray-100">
                                 <h2 className = {`${dmSans.className} text-6xl text-left font-light text-gray-900 mb-5`}> Find Us! </h2>
                             </div>
-                            <div className = "h-[550px] bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                            <div className = "h-[550px] bg-white rounded-lg shadow-lg border border-gray-200 p-4">
                                 <iframe
                                     src = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8193!2d103.84!3d1.278!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31da1911e0f4b5a5%3A0x4d2562ff9a6ab5d5!2s160%20Robinson%20Rd%2C%20Singapore!5e0!3m2!1sen!2ssg!4v1735862400000!5m2!1sen!2ssg"
                                     width = "100%"
