@@ -18,7 +18,7 @@ export default function Navigation() {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
-  const { isAuthenticated, admin, logout, loading } = useAuth();
+  const { isAuthenticated, administrator, logout, loading } = useAuth();
   const headerRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
   const scrollThreshold = 10;
