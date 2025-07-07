@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Inter, DM_Sans } from 'next/font/google';
+import { Inter, DM_Sans } from "next/font/google";
 
 const inter = Inter({ 
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700']
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"]
 });
 
 const dmSans = DM_Sans({ 
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700']
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"]
 });
 
 type FeatureID = "extraction" | "summary" | "reports";
@@ -118,20 +118,20 @@ const FeaturesSection: React.FC = () => {
     ];
 
     return (
-        <section className="py-20 px-6 bg-[#FAF0E6]">
-            <div className="px-40">
-                <div className="text-center mb-16">
-                    <div className="flex justify-center mb-12">
-                        <h2 className={`${dmSans.className} text-7xl font-light text-left text-gray-800`}>
+        <section className = "py-20 px-6 bg-[#FAF0E6]">
+            <div className = "px-40">
+                <div className = "text-center mb-16">
+                    <div className = "flex justify-center mb-12">
+                        <h2 className = {`${dmSans.className} text-7xl font-light text-left text-gray-800`}>
                             Our<br />Features
                         </h2>
                     </div>
-                    <div className="flex justify-center gap-14 mb-16">
+                    <div className = "flex justify-center gap-14 mb-16">
                         {tabs.map((tab: Tab) => (
                             <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`${inter.className} px-8 py-3 rounded-full text-base font-medium transition-all duration-300 ${
+                                key = {tab.id}
+                                onClick = {() => setActiveTab(tab.id)}
+                                className = {`${inter.className} px-8 py-3 rounded-full text-base font-medium transition-all duration-300 ${
                                     activeTab === tab.id
                                         ? "bg-gray-800 text-white shadow-lg"
                                         : "bg-gray-300 text-gray-700 hover:bg-gray-400"
@@ -142,9 +142,9 @@ const FeaturesSection: React.FC = () => {
                         ))}
                     </div>
                 </div>
-                <div className="h-[600px] grid lg:grid-cols-2 gap-36 items-start">
-                    <div className="order-2 lg:order-1 h-full">
-                        <div className="overflow-hidden border p-4 h-full flex items-center justify-center">
+                <div className = "h-[600px] grid lg:grid-cols-2 gap-36 items-start">
+                    <div className = "order-2 lg:order-1 h-full">
+                        <div className = "overflow-hidden border p-4 h-full flex items-center justify-center">
                             <img
                                 src={
                                     activeTab === "extraction" ? "/case-extraction-feature.jpg" :
@@ -156,29 +156,29 @@ const FeaturesSection: React.FC = () => {
                                     activeTab === "summary" ? "Case Summary View" :
                                     "Report Generation Tool"
                                 }
-                                className="max-w-full max-h-full object-contain"
+                                className = "max-w-full max-h-full object-contain"
                             />
                         </div>
                     </div>
-                    <div className="order-1 lg:order-2 h-full flex flex-col justify-center">
-                        <div key={activeTab} className="animate-fadeIn">
-                            <h3 className={`${dmSans.className} text-4xl font-light text-gray-800 mb-6`}>
+                    <div className = "order-1 lg:order-2 h-full flex flex-col justify-center">
+                        <div key = {activeTab} className = "animate-fadeIn">
+                            <h3 className = {`${dmSans.className} text-4xl font-light text-gray-800 mb-6`}>
                                 {features[activeTab].title}
                             </h3>
-                            <p className={`${inter.className} text-gray-600 text-lg leading-relaxed mb-8`}>
+                            <p className = {`${inter.className} text-gray-600 text-lg leading-relaxed mb-8`}>
                                 {features[activeTab].description}
                             </p>
-                            <div className="space-y-6">
+                            <div className = "space-y-6">
                                 {features[activeTab].points.map((point: FeaturePoint, index: number) => (
-                                    <div key={index} className="flex items-start gap-4">
-                                        <span className="text-2xl flex-shrink-0 mt-1">
+                                    <div key = {index} className = "flex items-start gap-4">
+                                        <span className = "text-2xl flex-shrink-0 mt-1">
                                             {point.icon}
                                         </span>
                                         <div>
-                                            <h4 className={`${dmSans.className} font-semibold text-xl text-gray-800 mb-2`}>
+                                            <h4 className = {`${dmSans.className} font-semibold text-xl text-gray-800 mb-2`}>
                                                 {point.title}
                                             </h4>
-                                            <p className={`${inter.className} text-gray-600 text-lg leading-relaxed`}>
+                                            <p className = {`${inter.className} text-gray-600 text-lg leading-relaxed`}>
                                                 {point.description}
                                             </p>
                                         </div>
