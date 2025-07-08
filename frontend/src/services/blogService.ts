@@ -759,7 +759,7 @@ class BlogService {
         return !!(post.uploaded_image || post.featured_image);
     }
 
-    getImageAlt(post: BlogPost): string {
+    getImageAlternative(post: BlogPost): string {
         if (post.uploaded_image_filename) {
             return post.uploaded_image_filename;
         }

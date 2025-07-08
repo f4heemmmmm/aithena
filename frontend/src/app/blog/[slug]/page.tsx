@@ -112,8 +112,8 @@ export default function BlogPostPage() {
     return blogService.getMainImage(post);
   };
 
-  const getImageAlt = (post: BlogPost) => {
-    return blogService.getImageAlt(post);
+  const getImageAlternative = (post: BlogPost) => {
+    return blogService.getImageAlternative(post);
   };
 
   if (loading) {
@@ -165,7 +165,7 @@ export default function BlogPostPage() {
   }
 
   const mainImage = getMainImage(post);
-  const imageAlt = getImageAlt(post);
+  const imageAlt = getImageAlternative(post);
 
   return (
     <div className="min-h-screen bg-white">
@@ -380,7 +380,7 @@ export default function BlogPostPage() {
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                     <img
                       src={getMainImage(relatedPost) || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
-                      alt={getImageAlt(relatedPost)}
+                      alt={getImageAlternative(relatedPost)}
                       className="w-full h-48 object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;

@@ -23,7 +23,7 @@ export default function NoArticles({ searchTerm = "", onClearSearch, variant = "
         <div className = "text-center py-24 min-h-[400px] flex items-center justify-center">
             <div className = "max-w-2xl mx-auto px-4">
                 <h3 className = {`${dmSans.className} text-3xl font-light text-gray-900 mb-6`}>
-                    {isSearchContext ? "No articles found" : "No articles available"}
+                    {isSearchContext ? "No articles found" : "No articles available right now..."}
                 </h3>
 
                 <div className = "space-y-4 mb-8">
