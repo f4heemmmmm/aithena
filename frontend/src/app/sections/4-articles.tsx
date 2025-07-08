@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { Inter, DM_Sans } from "next/font/google";
 import { ArrowRight, Calendar, User } from "lucide-react";
 
-import { blogService, BlogPost } from "@/services/blogService";
 import NoArticles from "@/components/NoArticles";
+import { blogService, BlogPost } from "@/services/blogService";
 
 const inter = Inter({ 
     subsets: ["latin"],
@@ -29,8 +29,6 @@ export default function ArticlesSection() {
     const fetchBlogPosts = async () => {
         try {
             setLoading(true);
-
-            // Fetch the 3 most recent published posts
             const recent = await blogService.getRecentPosts(3);
             setRecentPosts(recent);
         } catch (error) {
@@ -40,7 +38,7 @@ export default function ArticlesSection() {
         }
     };
 
-    const displayPosts = recentPosts.slice(0, 3); // Ensure maximum of 3 posts
+    const displayPosts = recentPosts.slice(0, 3);
     const hasRealPosts = recentPosts.length > 0;
 
     const renderLoadingSkeleton = () => (
@@ -55,9 +53,7 @@ export default function ArticlesSection() {
                     <div className = {`bg-gray-300 ${index === 0 ? "h-64" : "h-48"}`} />
                     <div className = {`p-6 ${index === 0 ? "md:p-8" : ""}`}>
                         <div className = "h-4 bg-gray-300 rounded w-1/2 mb-3" />
-                        <div className = {`bg-gray-300 rounded w-3/4 mb-3 ${
-                            index === 0 ? "h-8" : "h-6"
-                        }`} />
+                        <div className = {`bg-gray-300 rounded w-3/4 mb-3 ${index === 0 ? "h-8" : "h-6"}`} />
                         <div className = "h-4 bg-gray-300 rounded w-full mb-2" />
                         <div className = "h-4 bg-gray-300 rounded w-2/3 mb-4" />
                         <div className = "h-4 bg-gray-300 rounded w-1/3" />
@@ -125,7 +121,7 @@ export default function ArticlesSection() {
                                     }`}>
                                         {(() => {
                                             const excerpt = blogService.getExcerpt(post, shouldBeMainCard ? 200 : 120);
-                                            const firstSentence = excerpt.split('.')[0];
+                                            const firstSentence = excerpt.split(".")[0];
                                             return firstSentence.length < excerpt.length ? `${firstSentence}...` : excerpt;
                                         })()}
                                     </p>
@@ -151,7 +147,7 @@ export default function ArticlesSection() {
                         Latest Articles and Insights
                     </h2>
                     <p className = {`${inter.className} text-xl text-gray-600 max-w-7xl mx-auto leading-relaxed`}>
-                        AITHENA Articles & Insights is your one-stop chronicle of our journey—showcasing the awards that recognize our progress, the thought pieces that push legal-AI discourse forward, and the milestone events that mark each step along the way.
+                        AITHENA Articles & Insights is your one-stop chronicle of our journey - showcasing the awards that recognize our progress, the thought pieces that push legal-AI discourse forward, and the milestone events that mark each step along the way.
                     </p>
                 </div>
                 {loading ? renderLoadingSkeleton() : hasRealPosts ? renderArticlesGrid() : <NoArticles />}

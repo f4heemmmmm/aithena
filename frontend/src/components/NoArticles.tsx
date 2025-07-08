@@ -26,7 +26,6 @@ export default function NoArticles({ searchTerm = "", onClearSearch, variant = "
                     {isSearchContext ? "No articles found" : "No articles available"}
                 </h3>
 
-                {/* Description */}
                 <div className = "space-y-4 mb-8">
                     <div className = {`${inter.className} text-gray-600 text-lg leading-relaxed`}>
                         {isSearchContext 
