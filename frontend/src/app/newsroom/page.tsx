@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Calendar, User, ArrowRight, Search, Filter } from 'lucide-react';
+import { Calendar, User, ArrowRight, Search, Eye } from 'lucide-react';
 import { blogService, BlogPost } from '@/services/blogService';
 
 export default function NewsroomPage() {
@@ -149,6 +149,10 @@ export default function NewsroomPage() {
                       src={post.featured_image || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
                       alt={post.title}
                       className="w-full h-64 object-cover transition-transform duration-300 hover:scale-105"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                      }}
                     />
                     <div className="absolute top-4 left-4">
                       <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -158,12 +162,21 @@ export default function NewsroomPage() {
                   </div>
                   
                   <div className="p-6">
-                    <div className="flex items-center text-sm text-gray-500 mb-3">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
-                      <span className="mx-2">•</span>
-                      <User className="h-4 w-4 mr-2" />
-                      <span>{blogService.getAuthorName(post)}</span>
+                    <div className="flex flex-wrap items-center text-sm text-gray-500 mb-3 gap-2">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
+                      </div>
+                      <span className="hidden sm:inline">•</span>
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>{blogService.getAuthorName(post)}</span>
+                      </div>
+                      <span className="hidden sm:inline">•</span>
+                      <div className="flex items-center">
+                        <Eye className="h-4 w-4 mr-1" />
+                        <span>{blogService.formatViewCount(post.view_count)} views</span>
+                      </div>
                     </div>
                     
                     <h3 className="text-2xl font-bold text-gray-900 mb-3 line-clamp-2">
@@ -238,6 +251,10 @@ export default function NewsroomPage() {
                     src={post.featured_image || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
                     alt={post.title}
                     className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                    }}
                   />
                   {post.is_featured && (
                     <div className="absolute top-4 left-4">
@@ -249,12 +266,21 @@ export default function NewsroomPage() {
                 </div>
                 
                 <div className="p-6">
-                  <div className="flex items-center text-sm text-gray-500 mb-3">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
-                    <span className="mx-2">•</span>
-                    <User className="h-4 w-4 mr-2" />
-                    <span>{blogService.getAuthorName(post)}</span>
+                  <div className="flex flex-wrap items-center text-sm text-gray-500 mb-3 gap-2">
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
+                    </div>
+                    <span className="hidden sm:inline">•</span>
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-1" />
+                      <span>{blogService.getAuthorName(post)}</span>
+                    </div>
+                    <span className="hidden sm:inline">•</span>
+                    <div className="flex items-center">
+                      <Eye className="h-4 w-4 mr-1" />
+                      <span>{blogService.formatViewCount(post.view_count)} views</span>
+                    </div>
                   </div>
                   
                   <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
@@ -265,13 +291,18 @@ export default function NewsroomPage() {
                     {blogService.getExcerpt(post, 120)}
                   </p>
                   
-                  <Link
-                    href={`/blog/${post.slug}`}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                  >
-                    Read more
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
+                  <div className="flex items-center justify-between">
+                    <Link
+                      href={`/blog/${post.slug}`}
+                      className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    >
+                      Read more
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Link>
+                    <div className="text-sm text-gray-500">
+                      {blogService.formatReadingTime(post.content)}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

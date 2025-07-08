@@ -16,6 +16,7 @@ export interface BlogPost {
     featured_image?: string;
     is_published: boolean;
     is_featured: boolean;
+    view_count: number;
     author: BlogAuthor;
     created_at: string;
     updated_at: string;
@@ -50,6 +51,7 @@ export interface BlogStatistics {
     drafts: number;
     featured: number;
     recentlyPublished: number;
+    totalViews: number;
 }
 
 export interface ApiError {
@@ -149,6 +151,7 @@ class BlogService {
         };
 
         this.api.interceptors.response.use(handleResponse, handleError);
+        this.publicApi.interceptors.response.use(handleResponse, handleError);
     }
 
     private getStoredToken(): string | null {
@@ -450,6 +453,33 @@ class BlogService {
         }
     }
 
+    async incrementViewCount(slug: string): Promise<number> {
+        try {
+            const endpoints = [
+                `/api/blog/slug/${slug}/view`,
+                `/blog/slug/${slug}/view`
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await this.publicApi.post(endpoint);
+                    return response.data.view_count || 0;
+                } catch (error) {
+                    const axiosError = error as AxiosError;
+                    if (axiosError.response?.status !== 404) {
+                        console.warn(`Unexpected error from ${endpoint}:`, error);
+                    }
+                }
+            }
+            
+            console.warn("All view count increment endpoints failed");
+            return 0;
+        } catch (error) {
+            console.error("Error incrementing view count:", error);
+            return 0;
+        }
+    }
+
     async searchPosts(searchTerm: string, onlyPublished: boolean = true): Promise<BlogPost[]> {
         try {
             const params = new URLSearchParams();
@@ -577,6 +607,16 @@ class BlogService {
     formatReadingTime(content: string): string {
         const minutes = this.getReadingTime(content);
         return `${minutes} min read`;
+    }
+
+    formatViewCount(viewCount: number): string {
+        if (viewCount < 1000) {
+            return viewCount.toString();
+        } else if (viewCount < 1000000) {
+            return `${(viewCount / 1000).toFixed(1)}k`;
+        } else {
+            return `${(viewCount / 1000000).toFixed(1)}M`;
+        }
     }
 }
 

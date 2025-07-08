@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, User, ArrowLeft, Share2, Facebook, Twitter, Linkedin, Copy, Check } from 'lucide-react';
+import { Calendar, User, ArrowLeft, Share2, Facebook, Twitter, Linkedin, Copy, Check, Eye } from 'lucide-react';
 import { blogService, BlogPost } from '@/services/blogService';
 
 export default function BlogPostPage() {
@@ -18,6 +18,7 @@ export default function BlogPostPage() {
   const [notFound, setNotFound] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [viewCountIncremented, setViewCountIncremented] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -40,6 +41,15 @@ export default function BlogPostPage() {
       
       setPost(fetchedPost);
       
+      // Increment view count (only once per page load)
+      if (!viewCountIncremented) {
+        await blogService.incrementViewCount(slug);
+        setViewCountIncremented(true);
+        
+        // Update the post with incremented view count
+        setPost(prev => prev ? { ...prev, view_count: prev.view_count + 1 } : null);
+      }
+      
       // Fetch related posts (other recent posts)
       const allPosts = await blogService.getPublishedPosts();
       const related = allPosts
@@ -58,7 +68,7 @@ export default function BlogPostPage() {
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareTitle = post?.title || '';
 
-  const handleShare = (platform: string) => {
+  const handleShare = async (platform: string) => {
     let url = '';
     
     switch (platform) {
@@ -72,14 +82,28 @@ export default function BlogPostPage() {
         url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
         break;
       case 'copy':
-        navigator.clipboard.writeText(shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+          console.error('Failed to copy URL:', error);
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = shareUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+        setShareMenuOpen(false);
         return;
     }
     
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      window.open(url, '_blank', 'noopener,noreferrer,width=600,height=400');
     }
     setShareMenuOpen(false);
   };
@@ -147,15 +171,24 @@ export default function BlogPostPage() {
 
         {/* Article Meta */}
         <div className="mb-8">
-          <div className="flex items-center text-sm text-gray-500 mb-4">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
-            <span className="mx-2">•</span>
-            <User className="h-4 w-4 mr-2" />
-            <span>{blogService.getAuthorName(post)}</span>
+          <div className="flex flex-wrap items-center text-sm text-gray-500 mb-4 gap-2">
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-2" />
+              <span>{blogService.formatDate(post.published_at || post.created_at)}</span>
+            </div>
+            <span className="hidden sm:inline">•</span>
+            <div className="flex items-center">
+              <User className="h-4 w-4 mr-2" />
+              <span>{blogService.getAuthorName(post)}</span>
+            </div>
+            <span className="hidden sm:inline">•</span>
+            <div className="flex items-center">
+              <Eye className="h-4 w-4 mr-2" />
+              <span>{blogService.formatViewCount(post.view_count)} views</span>
+            </div>
             {post.is_featured && (
               <>
-                <span className="mx-2">•</span>
+                <span className="hidden sm:inline">•</span>
                 <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
                   Featured
                 </span>
@@ -176,51 +209,63 @@ export default function BlogPostPage() {
 
         {/* Share Button */}
         <div className="flex justify-between items-center mb-8">
-          <div></div>
+          <div className="text-sm text-gray-500">
+            {blogService.formatReadingTime(post.content)}
+          </div>
           <div className="relative">
             <button
               onClick={() => setShareMenuOpen(!shareMenuOpen)}
-              className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
             >
               <Share2 className="h-4 w-4 mr-2" />
-              Share
+              Share Article
             </button>
             
             {shareMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 z-10 overflow-hidden">
                 <div className="py-2">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                    <p className="text-xs font-medium text-gray-700">Share this article</p>
+                  </div>
                   <button
                     onClick={() => handleShare('facebook')}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                   >
-                    <Facebook className="h-4 w-4 mr-3 text-blue-600" />
-                    Facebook
+                    <Facebook className="h-5 w-5 mr-3 text-blue-600" />
+                    Share on Facebook
                   </button>
                   <button
                     onClick={() => handleShare('twitter')}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                   >
-                    <Twitter className="h-4 w-4 mr-3 text-blue-400" />
-                    Twitter
+                    <Twitter className="h-5 w-5 mr-3 text-blue-400" />
+                    Share on Twitter
                   </button>
                   <button
                     onClick={() => handleShare('linkedin')}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                   >
-                    <Linkedin className="h-4 w-4 mr-3 text-blue-700" />
-                    LinkedIn
+                    <Linkedin className="h-5 w-5 mr-3 text-blue-700" />
+                    Share on LinkedIn
                   </button>
-                  <button
-                    onClick={() => handleShare('copy')}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 mr-3 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4 mr-3 text-gray-600" />
-                    )}
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </button>
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <button
+                      onClick={() => handleShare('copy')}
+                      className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-5 w-5 mr-3 text-green-600" />
+                          <span className="text-green-600 font-medium">Link Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-5 w-5 mr-3 text-gray-600" />
+                          Copy Link
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -234,6 +279,10 @@ export default function BlogPostPage() {
               src={post.featured_image}
               alt={post.title}
               className="w-full h-96 object-cover rounded-xl shadow-lg"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+              }}
             />
           </div>
         )}
@@ -241,8 +290,39 @@ export default function BlogPostPage() {
         {/* Article Content */}
         <div 
           className="prose prose-lg max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br>') }}
+          dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {/* Share CTA */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Enjoyed this article?</h3>
+            <p className="text-gray-600 mb-4">Share it with your network and help others discover valuable insights.</p>
+            <div className="flex justify-center space-x-3">
+              <button
+                onClick={() => handleShare('facebook')}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Facebook className="h-4 w-4 mr-2" />
+                Facebook
+              </button>
+              <button
+                onClick={() => handleShare('twitter')}
+                className="flex items-center px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
+              >
+                <Twitter className="h-4 w-4 mr-2" />
+                Twitter
+              </button>
+              <button
+                onClick={() => handleShare('linkedin')}
+                className="flex items-center px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
+              >
+                <Linkedin className="h-4 w-4 mr-2" />
+                LinkedIn
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Author Bio */}
         <div className="border-t border-gray-200 pt-8 mb-12">
@@ -259,6 +339,9 @@ export default function BlogPostPage() {
                 {blogService.getAuthorName(post)}
               </h4>
               <p className="text-gray-600">Administrator at AITHENA</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Published {blogService.formatDate(post.published_at || post.created_at)}
+              </p>
             </div>
           </div>
         </div>
@@ -279,16 +362,24 @@ export default function BlogPostPage() {
                       src={relatedPost.featured_image || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
                       alt={relatedPost.title}
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                      }}
                     />
                     <div className="p-6">
                       <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                         {relatedPost.title}
                       </h4>
-                      <p className="text-gray-600 text-sm line-clamp-2">
+                      <p className="text-gray-600 text-sm line-clamp-2 mb-3">
                         {blogService.getExcerpt(relatedPost, 100)}
                       </p>
-                      <div className="mt-3 text-sm text-gray-500">
-                        {blogService.formatDate(relatedPost.published_at || relatedPost.created_at)}
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>{blogService.formatDate(relatedPost.published_at || relatedPost.created_at)}</span>
+                        <div className="flex items-center">
+                          <Eye className="h-3 w-3 mr-1" />
+                          <span>{blogService.formatViewCount(relatedPost.view_count)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -4,13 +4,191 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { FileText, Shield, LogOut, PenTool, Plus, TrendingUp } from 'lucide-react';
-import { BlogPostsManager } from '@/components/BlogPostModal';
+import { FileText, Shield, LogOut, PenTool, Plus, TrendingUp, Edit3, Eye, X } from 'lucide-react';
 import { useBlogPosts, useBlogStatistics } from '@/hooks/useBlog';
-import { BlogPostFormData } from '@/types/blog';
+import { BlogPost, BlogPostFormData } from '@/services/blogService';
+import BlogPostModal from '@/components/BlogPostModal';
+// Blog Posts Manager Component (updated to use new modal)
+interface BlogPostsManagerProps {
+    posts: BlogPost[];
+    onCreatePost: (data: BlogPostFormData) => Promise<void>;
+    onUpdatePost: (id: string, data: BlogPostFormData) => Promise<void>;
+    onDeletePost: (id: string) => Promise<void>;
+    isLoading?: boolean;
+}
+
+const BlogPostsManager: React.FC<BlogPostsManagerProps> = ({
+    posts,
+    onCreatePost,
+    onUpdatePost,
+    onDeletePost,
+    isLoading = false
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const handleModalSubmit = async (data: BlogPostFormData): Promise<void> => {
+        if (editingPost) {
+            await onUpdatePost(editingPost.id, data);
+        } else {
+            await onCreatePost(data);
+        }
+    };
+
+    const handleEdit = (post: BlogPost): void => {
+        setEditingPost(post);
+        setIsModalOpen(true);
+    };
+
+    const handleCreate = (): void => {
+        setEditingPost(null);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string): Promise<void> => {
+        if (window.confirm("Are you sure you want to delete this blog post?")) {
+            try {
+                setDeletingId(id);
+                await onDeletePost(id);
+            } catch (error) {
+                console.error("Error deleting post:", error);
+            } finally {
+                setDeletingId(null);
+            }
+        }
+    };
+
+    const handleCloseModal = (): void => {
+        setIsModalOpen(false);
+        setEditingPost(null);
+    };
+
+    const formatDate = (dateString: string): string => {
+        return new Date(dateString).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Enhanced Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-900">Blog Posts</h3>
+                    <p className="text-sm text-gray-600 mt-1">Manage your blog content and publications</p>
+                </div>
+                <button
+                    onClick={handleCreate}
+                    className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-lg hover:shadow-xl"
+                >
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Post
+                </button>
+            </div>
+
+            {/* Enhanced Posts List */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+            ) : posts.length === 0 ? (
+                <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                    <div className="p-6">
+                        <Edit3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No blog posts yet</p>
+                        <p className="text-gray-400 text-sm mt-1">Create your first post to get started!</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                    <ul className="divide-y divide-gray-100">
+                        {posts.map((post) => (
+                            <li key={post.id} className="hover:bg-gray-50 transition-colors">
+                                <div className="px-6 py-4 flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center space-x-3 mb-2">
+                                            <h3 className="text-sm font-semibold text-gray-900 truncate">
+                                                {post.title}
+                                            </h3>
+                                            <div className="flex items-center space-x-2">
+                                                {post.is_published ? (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+                                                        Published
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+                                                        Draft
+                                                    </span>
+                                                )}
+                                                {post.is_featured && (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                                        Featured
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center text-sm text-gray-500">
+                                            <span className="font-medium">By {post.author.first_name} {post.author.last_name}</span>
+                                            <span className="mx-2">•</span>
+                                            <span>{formatDate(post.updated_at)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        {post.is_published && (
+                                            <a
+                                                href={`/blog/${post.slug}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="View Post"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </a>
+                                        )}
+                                        <button
+                                            onClick={() => handleEdit(post)}
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Edit Post"
+                                        >
+                                            <Edit3 className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(post.id)}
+                                            disabled={deletingId === post.id}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Delete Post"
+                                        >
+                                            {deletingId === post.id ? (
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600" />
+                                            ) : (
+                                                <X className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* Updated Modal */}
+            <BlogPostModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                post={editingPost}
+                onSubmit={handleModalSubmit}
+                isLoading={isLoading}
+            />
+        </div>
+    );
+};
 
 export default function AdminDashboard() {
-  const { isAuthenticated, admin, logout, loading: authLoading } = useAuth();
+  const { isAuthenticated, administrator, logout, loading: authLoading } = useAuth();
   const router = useRouter();
 
   // Blog hooks
@@ -95,7 +273,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
-                Welcome, <span className="font-medium">{admin?.first_name} {admin?.last_name}</span>
+                Welcome, <span className="font-medium">{administrator?.first_name} {administrator?.last_name}</span>
               </div>
               <button
                 onClick={handleLogout}
@@ -265,8 +443,8 @@ export default function AdminDashboard() {
               <div className="text-sm text-gray-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <p className="mb-2"><strong className="text-gray-700">Name:</strong> {admin?.first_name} {admin?.last_name}</p>
-                    <p className="mb-2"><strong className="text-gray-700">Email:</strong> {admin?.email}</p>
+                    <p className="mb-2"><strong className="text-gray-700">Name:</strong> {administrator?.first_name} {administrator?.last_name}</p>
+                    <p className="mb-2"><strong className="text-gray-700">Email:</strong> {administrator?.email}</p>
                     <p><strong className="text-gray-700">Role:</strong> Administrator</p>
                   </div>
                   <div>

@@ -14,6 +14,7 @@ export interface BlogPost {
     featured_image: string;
     is_published: boolean;
     is_featured: boolean;
+    view_count: number;
     author: BlogAuthor;
     created_at: string;
     updated_at: string;
@@ -54,6 +55,7 @@ export interface BlogStatistics {
     drafts: number;
     featured: number;
     recentlyPublished: number;
+    totalViews: number;
 }
 
 export interface CreateBlogPostRequest {
