@@ -108,6 +108,14 @@ export default function BlogPostPage() {
     setShareMenuOpen(false);
   };
 
+  const getMainImage = (post: BlogPost) => {
+    return blogService.getMainImage(post);
+  };
+
+  const getImageAlt = (post: BlogPost) => {
+    return blogService.getImageAlt(post);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -156,10 +164,13 @@ export default function BlogPostPage() {
     );
   }
 
+  const mainImage = getMainImage(post);
+  const imageAlt = getImageAlt(post);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Article Header */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Back Button */}
         <Link
           href="/newsroom"
@@ -272,25 +283,34 @@ export default function BlogPostPage() {
           </div>
         </div>
 
-        {/* Featured Image */}
-        {post.featured_image && (
+        {/* Main Image - Uploaded or Featured */}
+        {mainImage && (
           <div className="mb-8">
             <img
-              src={post.featured_image}
-              alt={post.title}
+              src={mainImage}
+              alt={imageAlt}
               className="w-full h-96 object-cover rounded-xl shadow-lg"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                // Fallback to default image if both uploaded and featured images fail
+                if (target.src !== "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80") {
+                  target.src = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                }
               }}
             />
+            {/* Image caption if filename is available */}
+            {post.uploaded_image_filename && (
+              <p className="text-sm text-gray-500 text-center mt-2 italic">
+                {post.uploaded_image_filename}
+              </p>
+            )}
           </div>
         )}
 
         {/* Article Content */}
         <div 
-          className="prose prose-lg max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+        className="prose max-w-none mb-12 text-black blog-content"
+        dangerouslySetInnerHTML={{ __html: post.content }}
         />
 
         {/* Share CTA */}
@@ -359,8 +379,8 @@ export default function BlogPostPage() {
                 >
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                     <img
-                      src={relatedPost.featured_image || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
-                      alt={relatedPost.title}
+                      src={getMainImage(relatedPost) || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
+                      alt={getImageAlt(relatedPost)}
                       className="w-full h-48 object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -389,6 +409,124 @@ export default function BlogPostPage() {
           </div>
         )}
       </div>
+      <style jsx global>{`
+  /* Blog content styling - matches RichTextEditor preview */
+  .blog-content h1 { 
+    font-size: 2.5em !important; 
+    font-weight: 700 !important; 
+    margin: 0.8em 0 0.4em 0 !important; 
+    line-height: 1.2 !important;
+    color: #111827 !important;
+  }
+  
+  .blog-content h2 { 
+    font-size: 2em !important; 
+    font-weight: 600 !important; 
+    margin: 0.7em 0 0.35em 0 !important; 
+    line-height: 1.3 !important;
+    color: #1f2937 !important;
+  }
+  
+  .blog-content h3 { 
+    font-size: 1.5em !important; 
+    font-weight: 600 !important; 
+    margin: 0.6em 0 0.3em 0 !important; 
+    line-height: 1.4 !important;
+    color: #374151 !important;
+  }
+  
+  .blog-content h4 { 
+    font-size: 1.25em !important; 
+    font-weight: 600 !important; 
+    margin: 0.5em 0 0.25em 0 !important; 
+    line-height: 1.4 !important;
+    color: #4b5563 !important;
+  }
+  
+  .blog-content p { 
+    font-size: 1em !important;
+    margin: 0.5em 0 !important; 
+    line-height: 1.6 !important;
+    color: #374151 !important;
+  }
+  
+  .blog-content blockquote {
+    border-left: 4px solid #3b82f6 !important;
+    padding: 1em 1.5em !important;
+    margin: 1em 0 !important;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border-radius: 0 0.5rem 0.5rem 0 !important;
+    font-style: italic !important;
+    color: #4b5563 !important;
+  }
+  
+  /* Base lists */
+  .blog-content ul { 
+    padding-left: 2em !important; 
+    margin: 1em 0 !important;
+    list-style-type: disc !important;
+  }
+  
+  .blog-content ol { 
+    padding-left: 2em !important; 
+    margin: 1em 0 !important;
+    list-style-type: decimal !important;
+  }
+
+  /* Nested lists */
+  .blog-content ul ul {
+    list-style-type: circle !important;
+    margin: 0.25em 0 !important;
+    padding-left: 1.5em !important;
+  }
+
+  .blog-content ul ul ul {
+    list-style-type: square !important;
+    margin: 0.25em 0 !important;
+    padding-left: 1.5em !important;
+  }
+
+  .blog-content ol ol {
+    list-style-type: lower-alpha !important;
+    margin: 0.25em 0 !important;
+    padding-left: 1.5em !important;
+  }
+
+  .blog-content ol ol ol {
+    list-style-type: lower-roman !important;
+    margin: 0.25em 0 !important;
+    padding-left: 1.5em !important;
+  }
+  
+  .blog-content li { 
+    margin: 0.5em 0 !important; 
+    line-height: 1.6 !important;
+    display: list-item !important;
+  }
+  
+  .blog-content a { 
+    color: #3b82f6 !important; 
+    text-decoration: underline !important; 
+  }
+  
+  .blog-content strong, .blog-content b { 
+    font-weight: 700 !important; 
+  }
+  
+  .blog-content em, .blog-content i { 
+    font-style: italic !important; 
+  }
+  
+  .blog-content code {
+    background: #f3f4f6 !important;
+    color: #dc2626 !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 0.25rem !important;
+    font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
+    font-size: 0.9em !important;
+    border: 1px solid #d1d5db !important;
+  }
+`}</style>
 
       {/* Click outside to close share menu */}
       {shareMenuOpen && (

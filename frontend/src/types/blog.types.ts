@@ -12,6 +12,9 @@ export interface BlogPost {
     content: string;
     excerpt?: string;
     featured_image: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published: boolean;
     is_featured: boolean;
     view_count: number;
@@ -26,25 +29,28 @@ export interface BlogPostFormData {
     content: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published: boolean;
     is_featured: boolean;
 }
 
 export interface BlogResponse {
-    status_code: number;
+    statusCode: number;
     message: string;
     data: BlogPost[];
     count?: number;
 }
 
 export interface BlogPostResponse {
-    status_code: number;
+    statusCode: number;
     message: string;
     data: BlogPost;
 }
 
 export interface BlogStatisticsResponse {
-    status_code: number;
+    statusCode: number;
     message: string;
     data: BlogStatistics;
 }
@@ -63,6 +69,9 @@ export interface CreateBlogPostRequest {
     content: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published?: boolean;
     is_featured?: boolean;
 }
@@ -72,6 +81,9 @@ export interface UpdateBlogPostRequest {
     content?: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published?: boolean;
     is_featured?: boolean;
 }
@@ -86,7 +98,7 @@ export interface BlogPostQuery {
 }
 
 export interface PaginatedBlogResponse {
-    status_code: number;
+    statusCode: number;
     message: string;
     data: BlogPost[];
     count: number;
@@ -101,7 +113,7 @@ export interface BlogSearchQuery {
 
 export interface ApiError {
     message: string;
-    status_code: number;
+    statusCode: number;
     error?: string;
     details?: any;
 }
@@ -111,6 +123,7 @@ export interface BlogPostValidationErrors {
     content?: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
     general?: string;
 }
 
@@ -210,4 +223,23 @@ export interface BlogPostFilter {
         end: Date;
     };
     search?: string;
+}
+
+// New interfaces for image upload functionality
+export interface ImageUploadError {
+    type: 'file_too_large' | 'invalid_type' | 'upload_failed' | 'processing_failed';
+    message: string;
+}
+
+export interface ImageUploadState {
+    uploading: boolean;
+    error: ImageUploadError | null;
+    progress: number;
+}
+
+export interface UploadedImageData {
+    base64: string;
+    filename: string;
+    contentType: string;
+    size: number;
 }

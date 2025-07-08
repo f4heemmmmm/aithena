@@ -14,6 +14,9 @@ export interface BlogPost {
     content: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published: boolean;
     is_featured: boolean;
     view_count: number;
@@ -28,6 +31,9 @@ export interface BlogPostFormData {
     content: string;
     excerpt?: string;
     featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
     is_published: boolean;
     is_featured: boolean;
 }
@@ -68,6 +74,19 @@ export interface BlogPostQuery {
     isFeatured?: boolean;
 }
 
+// New interfaces for image upload functionality
+export interface ImageUploadError {
+    type: 'file_too_large' | 'invalid_type' | 'upload_failed' | 'processing_failed';
+    message: string;
+}
+
+export interface UploadedImageData {
+    base64: string;
+    filename: string;
+    contentType: string;
+    size: number;
+}
+
 interface ApiErrorResponse {
     message?: string;
     error?: string;
@@ -97,19 +116,23 @@ class BlogService {
         // Authenticated API instance
         this.api = axios.create({
             baseURL: this.baseURL,
-            timeout: 15000,
+            timeout: 60000, // Increased timeout for image uploads (60 seconds)
             headers: {
                 "Content-Type": "application/json",
             },
+            maxContentLength: 10 * 1024 * 1024, // 10MB
+            maxBodyLength: 10 * 1024 * 1024, // 10MB
         });
 
         // Public API instance without authentication
         this.publicApi = axios.create({
             baseURL: this.baseURL,
-            timeout: 15000,
+            timeout: 60000, // Increased timeout for image uploads
             headers: {
                 "Content-Type": "application/json",
             },
+            maxContentLength: 10 * 1024 * 1024, // 10MB
+            maxBodyLength: 10 * 1024 * 1024, // 10MB
         });
 
         this.setupInterceptors();
@@ -141,6 +164,7 @@ class BlogService {
                     url: error.config?.url,
                     method: error.config?.method,
                     data: error.response?.data,
+                    message: error.message,
                 });
             }
 
@@ -181,7 +205,7 @@ class BlogService {
         
         if (error.code === "ECONNABORTED") {
             return {
-                message: "Request timeout - please check if the backend server is running",
+                message: "Request timeout - please check if the backend server is running or try a smaller image",
                 statusCode: 408,
             };
         }
@@ -190,6 +214,14 @@ class BlogService {
             return {
                 message: "Connection refused - backend server may not be running",
                 statusCode: 503,
+            };
+        }
+
+        // Handle network errors
+        if (error.message?.includes("Network Error")) {
+            return {
+                message: "Network error - please check your connection",
+                statusCode: 0,
             };
         }
 
@@ -232,11 +264,65 @@ class BlogService {
         throw new ApiServiceError("All API endpoints are unavailable", 503);
     }
 
+    // Image utility methods
+    validateImageData(imageData: UploadedImageData): ImageUploadError | null {
+        // Check if base64 data is valid
+        if (!imageData.base64.startsWith('data:image/')) {
+            return {
+                type: 'invalid_type',
+                message: 'Invalid image data format'
+            };
+        }
+
+        // More accurate size calculation for base64
+        const base64Data = imageData.base64.split(',')[1] || imageData.base64;
+        const sizeInBytes = base64Data.length;
+        const maxSize = 2 * 1024 * 1024; // 2MB for base64 string
+        
+        if (sizeInBytes > maxSize) {
+            return {
+                type: 'file_too_large',
+                message: `Compressed image is still too large (${Math.round(sizeInBytes / 1024)}KB). Maximum allowed: ${Math.round(maxSize / 1024)}KB`
+            };
+        }
+
+        // Check content type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(imageData.contentType)) {
+            return {
+                type: 'invalid_type',
+                message: 'Invalid image type. Supported: JPEG, PNG, GIF, WebP'
+            };
+        }
+
+        return null;
+    }
+
     // Admin Methods (require authentication)
 
     async createPost(data: BlogPostFormData): Promise<BlogPost> {
         try {
-            console.log("Creating blog post with data:", data);
+            console.log("Creating blog post with data size:", {
+                title: data.title?.length || 0,
+                content: data.content?.length || 0,
+                hasUploadedImage: !!data.uploaded_image,
+                imageSize: data.uploaded_image ? `${Math.round(data.uploaded_image.length / 1024)}KB` : 'N/A'
+            });
+            
+            // Validate uploaded image if present
+            if (data.uploaded_image && data.uploaded_image_filename && data.uploaded_image_content_type) {
+                const imageData: UploadedImageData = {
+                    base64: data.uploaded_image,
+                    filename: data.uploaded_image_filename,
+                    contentType: data.uploaded_image_content_type,
+                    size: data.uploaded_image.length
+                };
+                
+                const validationError = this.validateImageData(imageData);
+                if (validationError) {
+                    throw new Error(`Image validation failed: ${validationError.message}`);
+                }
+            }
             
             const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", data);
             console.log("Blog post created successfully:", response.data);
@@ -244,6 +330,19 @@ class BlogService {
         } catch (error) {
             console.error("Error creating blog post:", error);
             const axiosError = error as AxiosError;
+            
+            // Handle specific error types
+            if (axiosError.response?.status === 413) {
+                throw new Error("Image file is too large. Please compress the image and try again.");
+            }
+            
+            if (axiosError.response?.status === 400) {
+                const errorData = axiosError.response.data as any;
+                if (errorData.message && errorData.message.includes('too large')) {
+                    throw new Error("Request payload too large. Please use a smaller image.");
+                }
+                throw new Error(errorData.message || "Invalid request data");
+            }
             
             // Try alternative endpoint if primary fails with 404
             if (axiosError.response?.status === 404) {
@@ -263,13 +362,44 @@ class BlogService {
 
     async updatePost(id: string, data: Partial<BlogPostFormData>): Promise<BlogPost> {
         try {
-            console.log("Updating blog post:", id, data);
+            console.log("Updating blog post:", id, {
+                hasUploadedImage: !!data.uploaded_image,
+                imageSize: data.uploaded_image ? `${Math.round(data.uploaded_image.length / 1024)}KB` : 'N/A'
+            });
+            
+            // Validate uploaded image if present
+            if (data.uploaded_image && data.uploaded_image_filename && data.uploaded_image_content_type) {
+                const imageData: UploadedImageData = {
+                    base64: data.uploaded_image,
+                    filename: data.uploaded_image_filename,
+                    contentType: data.uploaded_image_content_type,
+                    size: data.uploaded_image.length
+                };
+                
+                const validationError = this.validateImageData(imageData);
+                if (validationError) {
+                    throw new Error(`Image validation failed: ${validationError.message}`);
+                }
+            }
             
             const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/api/blog/${id}`, data);
             return response.data.data;
         } catch (error) {
             console.error("Error updating blog post:", error);
             const axiosError = error as AxiosError;
+            
+            // Handle specific error types
+            if (axiosError.response?.status === 413) {
+                throw new Error("Image file is too large. Please compress the image and try again.");
+            }
+            
+            if (axiosError.response?.status === 400) {
+                const errorData = axiosError.response.data as any;
+                if (errorData.message && errorData.message.includes('too large')) {
+                    throw new Error("Request payload too large. Please use a smaller image.");
+                }
+                throw new Error(errorData.message || "Invalid request data");
+            }
             
             if (axiosError.response?.status === 404) {
                 try {
@@ -617,6 +747,58 @@ class BlogService {
         } else {
             return `${(viewCount / 1000000).toFixed(1)}M`;
         }
+    }
+
+    // Image utility methods
+    getMainImage(post: BlogPost): string | null {
+        // Prioritize uploaded image over featured image
+        return post.uploaded_image || post.featured_image || null;
+    }
+
+    hasMainImage(post: BlogPost): boolean {
+        return !!(post.uploaded_image || post.featured_image);
+    }
+
+    getImageAlt(post: BlogPost): string {
+        if (post.uploaded_image_filename) {
+            return post.uploaded_image_filename;
+        }
+        return `Image for ${post.title}`;
+    }
+
+    // Convert base64 to blob URL for better performance (optional)
+    createImageBlobUrl(base64: string): string {
+        try {
+            const byteCharacters = atob(base64.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray]);
+            return URL.createObjectURL(blob);
+        } catch (error) {
+            console.error('Error creating blob URL:', error);
+            return base64; // Fallback to base64
+        }
+    }
+
+    // Format file size for display
+    formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Estimate compressed size
+    estimateCompressedSize(originalSize: number): string {
+        // Rough estimation: 30-70% reduction depending on image content
+        const estimatedSize = originalSize * 0.5; // 50% reduction estimate
+        return this.formatFileSize(estimatedSize);
     }
 }
 
