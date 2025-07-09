@@ -1,4 +1,9 @@
+// Complete BlogService.ts with full TypeScript compliance
 import axios, { AxiosInstance, AxiosResponse, AxiosError, isAxiosError } from "axios";
+
+// ===========================================
+// TYPES AND INTERFACES
+// ===========================================
 
 export enum BlogCategory {
     NEWSROOM = "newsroom",
@@ -14,6 +19,28 @@ export interface BlogAuthor {
     email: string;
 }
 
+// Raw blog post from API (categories might be string or array due to database storage)
+export interface BlogPostRaw {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    excerpt?: string;
+    featured_image?: string;
+    uploaded_image?: string;
+    uploaded_image_filename?: string;
+    uploaded_image_content_type?: string;
+    is_published: boolean;
+    is_featured: boolean;
+    view_count: number;
+    categories: BlogCategory[] | string; // Handle both types from database
+    author: BlogAuthor;
+    created_at: string;
+    updated_at: string;
+    published_at?: string;
+}
+
+// Processed blog post (categories always normalized to array)
 export interface BlogPost {
     id: string;
     title: string;
@@ -27,7 +54,7 @@ export interface BlogPost {
     is_published: boolean;
     is_featured: boolean;
     view_count: number;
-    categories: BlogCategory[];
+    categories: BlogCategory[]; // Always normalized to array
     author: BlogAuthor;
     created_at: string;
     updated_at: string;
@@ -50,14 +77,14 @@ export interface BlogPostFormData {
 export interface BlogResponse {
     status_code: number;
     message: string;
-    data: BlogPost[];
+    data: BlogPostRaw[]; // Raw posts from API
     count?: number;
 }
 
 export interface BlogPostResponse {
     status_code: number;
     message: string;
-    data: BlogPost;
+    data: BlogPostRaw; // Raw post from API
 }
 
 export interface BlogStatistics {
@@ -109,6 +136,63 @@ interface LoggingContext {
     [key: string]: unknown;
 }
 
+// ===========================================
+// UTILITY FUNCTIONS
+// ===========================================
+
+// Type guards
+function isStringCategories(categories: BlogCategory[] | string | null | undefined): categories is string {
+    return typeof categories === 'string';
+}
+
+function isArrayCategories(categories: BlogCategory[] | string | null | undefined): categories is BlogCategory[] {
+    return Array.isArray(categories);
+}
+
+// Utility function to normalize categories from any format to BlogCategory[]
+function normalizeCategories(categories: BlogCategory[] | string | null | undefined): BlogCategory[] {
+    if (!categories) {
+        return [BlogCategory.NEWSROOM];
+    }
+    
+    if (isStringCategories(categories)) {
+        // Handle empty or malformed strings
+        if (categories === '' || categories === '{}' || categories === 'null' || categories === 'undefined') {
+            return [BlogCategory.NEWSROOM];
+        }
+        
+        // Parse comma-separated string
+        const parsed = categories
+            .split(',')
+            .map(cat => cat.trim() as BlogCategory)
+            .filter(cat => cat && Object.values(BlogCategory).includes(cat));
+            
+        return parsed.length > 0 ? parsed : [BlogCategory.NEWSROOM];
+    }
+    
+    if (isArrayCategories(categories)) {
+        // Filter to only valid categories
+        const filtered = categories.filter(cat => cat && Object.values(BlogCategory).includes(cat));
+        return filtered.length > 0 ? filtered : [BlogCategory.NEWSROOM];
+    }
+    
+    // Fallback for any other type
+    return [BlogCategory.NEWSROOM];
+}
+
+// Function to convert raw post to processed post
+function processBlogPost(rawPost: BlogPostRaw): BlogPost {
+    return {
+        ...rawPost,
+        categories: normalizeCategories(rawPost.categories)
+    };
+}
+
+// Function to process array of raw posts
+function processBlogPosts(rawPosts: BlogPostRaw[]): BlogPost[] {
+    return rawPosts.map(rawPost => processBlogPost(rawPost));
+}
+
 // Enhanced error logging utility with strict TypeScript compliance
 const logErrorDetails = (context: string, error: unknown): void => {
     console.group(`🔴 ${context}`);
@@ -144,7 +228,7 @@ const logErrorDetails = (context: string, error: unknown): void => {
         } else if (error && typeof error === 'object' && error !== null) {
             const objectErrorDetails: LoggingContext = {
                 type: typeof error,
-                constructor: (error as Record<string, unknown>).constructor?.constructor?.name || 'Unknown',
+                constructor: (error as Record<string, unknown>).constructor?.name || 'Unknown',
                 keys: Object.keys(error as Record<string, unknown>),
                 stringified: JSON.stringify(error),
                 valueOf: String(error)
@@ -169,6 +253,10 @@ const logErrorDetails = (context: string, error: unknown): void => {
     
     console.groupEnd();
 };
+
+// ===========================================
+// BLOG SERVICE CLASS
+// ===========================================
 
 class BlogService {
     private api: AxiosInstance;
@@ -401,56 +489,7 @@ class BlogService {
         throw new Error("All API endpoints are unavailable");
     }
 
-    // Enhanced validation with detailed logging
-    private validateFormData(data: BlogPostFormData): BlogPostFormData {
-        const validationInfo: LoggingContext = {
-            title: data.title?.length || 0,
-            content: data.content?.length || 0,
-            categories: data.categories,
-            hasUploadedImage: !!data.uploaded_image,
-            hasExcerpt: !!data.excerpt,
-            hasFeaturedImage: !!data.featured_image
-        };
-        
-        console.log("🔍 Validating form data:", validationInfo);
-
-        // Validate and fix categories
-        let validCategories = data.categories;
-        if (!validCategories || !Array.isArray(validCategories) || validCategories.length === 0) {
-            console.warn("⚠️ No valid categories provided, using default NEWSROOM");
-            validCategories = [BlogCategory.NEWSROOM];
-        }
-
-        // Filter out invalid categories
-        const validCategoryValues = Object.values(BlogCategory);
-        const filteredCategories = validCategories.filter((cat): cat is BlogCategory => 
-            validCategoryValues.includes(cat)
-        );
-        
-        if (filteredCategories.length === 0) {
-            console.warn("⚠️ All categories were invalid, using default NEWSROOM");
-            filteredCategories.push(BlogCategory.NEWSROOM);
-        }
-
-        const validatedData: BlogPostFormData = {
-            ...data,
-            title: data.title?.trim() || "",
-            content: data.content?.trim() || "",
-            excerpt: data.excerpt?.trim() || undefined,
-            categories: filteredCategories
-        };
-
-        const validatedInfo: LoggingContext = {
-            title: validatedData.title.length,
-            content: validatedData.content.length,
-            categories: validatedData.categories,
-            hasExcerpt: !!validatedData.excerpt
-        };
-        
-        console.log("✅ Validated data:", validatedInfo);
-
-        return validatedData;
-    }
+    
 
     // Image utility methods
     validateImageData(imageData: UploadedImageData): ImageUploadError | null {
@@ -491,111 +530,6 @@ class BlogService {
         return null;
     }
 
-    // Enhanced createPost with comprehensive error handling
-    async createPost(data: BlogPostFormData): Promise<BlogPost> {
-        console.group("🚀 Creating Blog Post");
-        
-        // Validate the form data first (moved outside try block to be accessible in catch)
-        const validatedData = this.validateFormData(data);
-        
-        try {
-            // Validate uploaded image if present
-            if (validatedData.uploaded_image && validatedData.uploaded_image_filename && validatedData.uploaded_image_content_type) {
-                console.log("🖼️ Validating uploaded image...");
-                const imageData: UploadedImageData = {
-                    base64: validatedData.uploaded_image,
-                    filename: validatedData.uploaded_image_filename,
-                    contentType: validatedData.uploaded_image_content_type,
-                    size: validatedData.uploaded_image.length
-                };
-                
-                const validationError = this.validateImageData(imageData);
-                if (validationError) {
-                    throw new Error(`Image validation failed: ${validationError.message}`);
-                }
-                console.log("✅ Image validation passed");
-            }
-
-            console.log("📤 Sending POST request to /api/blog");
-            console.log("📦 Request payload size:", JSON.stringify(validatedData).length, "bytes");
-            
-            const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", validatedData);
-            
-            const successInfo: LoggingContext = {
-                id: response.data.data.id,
-                title: response.data.data.title,
-                categories: response.data.data.categories
-            };
-            
-            console.log("✅ Blog post created successfully:", successInfo);
-            
-            console.groupEnd();
-            return response.data.data;
-            
-        } catch (error: unknown) {
-            console.groupEnd();
-            
-            // Log the raw error before processing
-            console.error("🚨 Raw createPost error:", error);
-            logErrorDetails("Blog Post Creation Failed", error);
-            
-            if (isAxiosError(error)) {
-                if (error.response?.status === 413) {
-                    throw new Error("Image file is too large. Please compress the image and try again.");
-                }
-                
-                if (error.response?.status === 400) {
-                    const errorData = error.response.data as ApiErrorResponse;
-                    if (errorData?.message && errorData.message.includes('too large')) {
-                        throw new Error("Request payload too large. Please use a smaller image.");
-                    }
-                    throw new Error(errorData?.message || "Invalid request data. Please check your form inputs.");
-                }
-
-                if (error.response?.status === 401) {
-                    throw new Error("Authentication failed. Please log in again.");
-                }
-
-                if (error.response?.status === 403) {
-                    throw new Error("You don't have permission to create blog posts.");
-                }
-
-                if (error.response?.status === 500) {
-                    throw new Error("Server error. Please try again later or contact support.");
-                }
-                
-                // Try alternative endpoint if primary fails with 404
-                if (error.response?.status === 404) {
-                    console.log("🔄 Trying alternative endpoint /blog");
-                    try {
-                        const response: AxiosResponse<BlogPostResponse> = await this.api.post("/blog", validatedData);
-                        console.log("✅ Blog post created via alternative endpoint");
-                        return response.data.data;
-                    } catch (altError: unknown) {
-                        logErrorDetails("Alternative Endpoint Failed", altError);
-                        throw new Error("Blog creation endpoint not found. Please check your API configuration.");
-                    }
-                }
-
-                if (error.code === "ECONNREFUSED") {
-                    throw new Error("Cannot connect to the server. Please ensure the backend is running and accessible.");
-                }
-
-                if (error.code === "ECONNABORTED") {
-                    throw new Error("Request timed out. Please try with a smaller image or check your connection.");
-                }
-
-                throw new Error(error.message || "Network error occurred while creating the blog post.");
-            }
-            
-            if (error instanceof Error) {
-                throw error;
-            }
-            
-            throw new Error("An unexpected error occurred while creating the blog post.");
-        }
-    }
-
     // ===========================================
     // PUBLIC METHODS (No authentication required)
     // ===========================================
@@ -605,30 +539,21 @@ class BlogService {
             console.log("🔍 Fetching published posts...");
             const endpoints = ["/api/blog/published", "/blog/published"];
             const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            console.log("✅ Published posts fetched:", response.data?.length || 0);
-            return response.data || [];
+            
+            const rawPosts = response.data || [];
+            console.log("📋 Raw published posts fetched:", rawPosts.length);
+            
+            const processedPosts = processBlogPosts(rawPosts);
+            console.log("✅ Processed published posts:", processedPosts.length);
+            
+            return processedPosts;
         } catch (error: unknown) {
             console.error("❌ Error fetching published posts:", error);
             return [];
         }
     }
 
-    async getPostsByCategory(category: BlogCategory): Promise<BlogPost[]> {
-        try {
-            console.log(`🔍 Fetching posts for category: ${category}`);
-            const endpoints = [
-                `/api/blog/category/${category}`,
-                `/blog/category/${category}`
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            console.log(`✅ Category posts fetched for ${category}:`, response.data?.length || 0);
-            return response.data || [];
-        } catch (error: unknown) {
-            console.error(`❌ Error fetching posts for category ${category}:`, error);
-            return [];
-        }
-    }
-
+    
     async getFeaturedPosts(limit?: number): Promise<BlogPost[]> {
         try {
             console.log("🔍 Fetching featured posts...");
@@ -637,8 +562,14 @@ class BlogService {
                 limit ? `/blog/featured?limit=${limit}` : "/blog/featured"
             ];
             const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            console.log("✅ Featured posts fetched:", response.data?.length || 0);
-            return response.data || [];
+            
+            const rawPosts = response.data || [];
+            console.log("📋 Raw featured posts fetched:", rawPosts.length);
+            
+            const processedPosts = processBlogPosts(rawPosts);
+            console.log("✅ Processed featured posts:", processedPosts.length);
+            
+            return processedPosts;
         } catch (error: unknown) {
             console.error("❌ Error fetching featured posts:", error);
             return [];
@@ -653,8 +584,14 @@ class BlogService {
                 limit ? `/blog/recent?limit=${limit}` : "/blog/recent"
             ];
             const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            console.log("✅ Recent posts fetched:", response.data?.length || 0);
-            return response.data || [];
+            
+            const rawPosts = response.data || [];
+            console.log("📋 Raw recent posts fetched:", rawPosts.length);
+            
+            const processedPosts = processBlogPosts(rawPosts);
+            console.log("✅ Processed recent posts:", processedPosts.length);
+            
+            return processedPosts;
         } catch (error: unknown) {
             console.error("❌ Error fetching recent posts:", error);
             return [];
@@ -666,8 +603,12 @@ class BlogService {
             console.log(`🔍 Fetching post by slug: ${slug}`);
             const endpoints = [`/api/blog/slug/${slug}`, `/blog/slug/${slug}`];
             const response = await this.tryApiEndpoints<BlogPostResponse>(endpoints);
-            console.log(`✅ Post fetched by slug: ${slug}`);
-            return response.data;
+            
+            console.log(`📋 Raw post fetched by slug: ${slug}`);
+            const processedPost = processBlogPost(response.data);
+            console.log(`✅ Processed post by slug: ${slug}`);
+            
+            return processedPost;
         } catch (error: unknown) {
             const apiError = error as ApiError;
             if (apiError.statusCode === 404) {
@@ -721,8 +662,14 @@ class BlogService {
                 `/blog/search?${params.toString()}`
             ];
             const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            console.log(`✅ Search results for "${searchTerm}":`, response.data?.length || 0);
-            return response.data || [];
+            
+            const rawPosts = response.data || [];
+            console.log(`📋 Raw search results for "${searchTerm}":`, rawPosts.length);
+            
+            const processedPosts = processBlogPosts(rawPosts);
+            console.log(`✅ Processed search results for "${searchTerm}":`, processedPosts.length);
+            
+            return processedPosts;
         } catch (error: unknown) {
             console.error(`❌ Error searching posts for "${searchTerm}":`, error);
             return [];
@@ -732,6 +679,249 @@ class BlogService {
     // ===========================================
     // ADMIN METHODS (Require authentication)
     // ===========================================
+
+    // Updated sections of blogService.ts for better category handling
+
+// Add this enhanced logging to the createPost method in blogService.ts
+async createPost(data: BlogPostFormData): Promise<BlogPost> {
+    console.group("🚀 Creating Blog Post");
+    
+    // Validate the form data first
+    const validatedData = this.validateFormData(data);
+    
+    try {
+        // Enhanced category validation and logging
+        console.log("📋 Category validation:", {
+            originalCategories: data.categories,
+            validatedCategories: validatedData.categories,
+            categoriesType: typeof validatedData.categories,
+            categoriesArray: Array.isArray(validatedData.categories),
+            categoriesLength: validatedData.categories?.length
+        });
+
+        // Validate uploaded image if present
+        if (validatedData.uploaded_image && validatedData.uploaded_image_filename && validatedData.uploaded_image_content_type) {
+            console.log("🖼️ Validating uploaded image...");
+            const imageData: UploadedImageData = {
+                base64: validatedData.uploaded_image,
+                filename: validatedData.uploaded_image_filename,
+                contentType: validatedData.uploaded_image_content_type,
+                size: validatedData.uploaded_image.length
+            };
+            
+            const validationError = this.validateImageData(imageData);
+            if (validationError) {
+                throw new Error(`Image validation failed: ${validationError.message}`);
+            }
+            console.log("✅ Image validation passed");
+        }
+
+        console.log("📤 Sending POST request to /api/blog");
+        console.log("📦 Request payload:", {
+            title: validatedData.title,
+            categories: validatedData.categories,
+            payloadSize: JSON.stringify(validatedData).length + " bytes"
+        });
+        
+        const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", validatedData);
+        
+        const processedPost = processBlogPost(response.data.data);
+        
+        const successInfo: LoggingContext = {
+            id: processedPost.id,
+            title: processedPost.title,
+            categories: processedPost.categories,
+            finalCategoriesCount: processedPost.categories.length
+        };
+        
+        console.log("✅ Blog post created successfully:", successInfo);
+        
+        console.groupEnd();
+        return processedPost;
+        
+    } catch (error: unknown) {
+        console.groupEnd();
+        
+        // Log the raw error before processing
+        console.error("🚨 Raw createPost error:", error);
+        logErrorDetails("Blog Post Creation Failed", error);
+        
+        if (isAxiosError(error)) {
+            if (error.response?.status === 413) {
+                throw new Error("Image file is too large. Please compress the image and try again.");
+            }
+            
+            if (error.response?.status === 400) {
+                const errorData = error.response.data as ApiErrorResponse;
+                if (errorData?.message && errorData.message.includes('too large')) {
+                    throw new Error("Request payload too large. Please use a smaller image.");
+                }
+                throw new Error(errorData?.message || "Invalid request data. Please check your form inputs.");
+            }
+
+            if (error.response?.status === 401) {
+                throw new Error("Authentication failed. Please log in again.");
+            }
+
+            if (error.response?.status === 403) {
+                throw new Error("You don't have permission to create blog posts.");
+            }
+
+            if (error.response?.status === 500) {
+                throw new Error("Server error. Please try again later or contact support.");
+            }
+            
+            // Try alternative endpoint if primary fails with 404
+            if (error.response?.status === 404) {
+                console.log("🔄 Trying alternative endpoint /blog");
+                try {
+                    const response: AxiosResponse<BlogPostResponse> = await this.api.post("/blog", validatedData);
+                    console.log("✅ Blog post created via alternative endpoint");
+                    return processBlogPost(response.data.data);
+                } catch (altError: unknown) {
+                    logErrorDetails("Alternative Endpoint Failed", altError);
+                    throw new Error("Blog creation endpoint not found. Please check your API configuration.");
+                }
+            }
+
+            if (error.code === "ECONNREFUSED") {
+                throw new Error("Cannot connect to the server. Please ensure the backend is running and accessible.");
+            }
+
+            if (error.code === "ECONNABORTED") {
+                throw new Error("Request timed out. Please try with a smaller image or check your connection.");
+            }
+
+            throw new Error(error.message || "Network error occurred while creating the blog post.");
+        }
+        
+        if (error instanceof Error) {
+            throw error;
+        }
+        
+        throw new Error("An unexpected error occurred while creating the blog post.");
+    }
+}
+
+// Enhanced validateFormData method with better category handling
+private validateFormData(data: BlogPostFormData): BlogPostFormData {
+    const validationInfo: LoggingContext = {
+        title: data.title?.length || 0,
+        content: data.content?.length || 0,
+        categories: data.categories,
+        categoriesType: typeof data.categories,
+        categoriesArray: Array.isArray(data.categories),
+        hasUploadedImage: !!data.uploaded_image,
+        hasExcerpt: !!data.excerpt,
+        hasFeaturedImage: !!data.featured_image
+    };
+    
+    console.log("🔍 Validating form data:", validationInfo);
+
+    // Enhanced category validation and normalization
+    let validCategories = data.categories;
+    
+    // Handle various input formats
+    if (!validCategories) {
+        console.warn("⚠️ No categories provided, using default NEWSROOM");
+        validCategories = [BlogCategory.NEWSROOM];
+    } else if (!Array.isArray(validCategories)) {
+        console.warn("⚠️ Categories is not an array, converting to array:", validCategories);
+        // Handle case where categories might be sent as a single value or string
+        if (typeof validCategories === 'string') {
+            validCategories = [validCategories as BlogCategory];
+        } else {
+            validCategories = [BlogCategory.NEWSROOM];
+        }
+    } else if (validCategories.length === 0) {
+        console.warn("⚠️ Empty categories array, using default NEWSROOM");
+        validCategories = [BlogCategory.NEWSROOM];
+    }
+
+    // Filter out invalid categories and remove duplicates
+    const validCategoryValues = Object.values(BlogCategory);
+    const filteredCategories = [...new Set(validCategories)].filter((cat): cat is BlogCategory => 
+        validCategoryValues.includes(cat)
+    );
+    
+    if (filteredCategories.length === 0) {
+        console.warn("⚠️ All categories were invalid, using default NEWSROOM");
+        filteredCategories.push(BlogCategory.NEWSROOM);
+    }
+
+    const validatedData: BlogPostFormData = {
+        ...data,
+        title: data.title?.trim() || "",
+        content: data.content?.trim() || "",
+        excerpt: data.excerpt?.trim() || undefined,
+        categories: filteredCategories
+    };
+
+    const validatedInfo: LoggingContext = {
+        title: validatedData.title.length,
+        content: validatedData.content.length,
+        categories: validatedData.categories,
+        categoriesCount: validatedData.categories.length,
+        hasExcerpt: !!validatedData.excerpt
+    };
+    
+    console.log("✅ Validated data:", validatedInfo);
+
+    return validatedData;
+}
+
+// Enhanced getPostsByCategory method with better debugging
+async getPostsByCategory(category: BlogCategory): Promise<BlogPost[]> {
+    try {
+        console.log(`🔍 Frontend: Fetching posts for category: ${category}`);
+        const endpoints = [
+            `/api/blog/category/${category}`,
+            `/blog/category/${category}`
+        ];
+        const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+        
+        const rawPosts = response.data || [];
+        console.log(`📋 Frontend: Raw category posts fetched for ${category}:`, rawPosts.length);
+        
+        // Process raw posts to normalize categories
+        const processedPosts = processBlogPosts(rawPosts);
+        
+        // Additional client-side filtering to ensure accuracy
+        const filteredPosts = processedPosts.filter(post => {
+            const hasCategory = post.categories.includes(category);
+            const isPublished = post.is_published;
+            
+            console.log(`📝 Frontend: Post "${post.title}": categories=[${post.categories.join(', ')}], has ${category}: ${hasCategory}, published: ${isPublished}`);
+            
+            if (!hasCategory) {
+                console.warn(`⚠️ Frontend: Post "${post.title}" doesn't contain category ${category}, has:`, post.categories);
+            }
+            
+            if (!isPublished) {
+                console.warn(`⚠️ Frontend: Post "${post.title}" is not published`);
+            }
+            
+            return hasCategory && isPublished;
+        });
+        
+        console.log(`✅ Frontend: Filtered posts for ${category}:`, filteredPosts.length);
+        
+        // Log sample posts for debugging
+        if (filteredPosts.length > 0) {
+            filteredPosts.slice(0, 3).forEach(post => {
+                console.log(`📄 Sample post: "${post.title}" - categories: [${post.categories.join(', ')}]`);
+            });
+        } else {
+            console.warn(`⚠️ No posts found for category ${category}. This might indicate a backend issue.`);
+        }
+        
+        return filteredPosts;
+        
+    } catch (error: unknown) {
+        console.error(`❌ Frontend: Error fetching posts for category ${category}:`, error);
+        return [];
+    }
+}
 
     async updatePost(id: string, data: Partial<BlogPostFormData>): Promise<BlogPost> {
         try {
@@ -753,7 +943,8 @@ class BlogService {
             
             const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/api/blog/${id}`, data);
             console.log("✅ Blog post updated successfully");
-            return response.data.data;
+            
+            return processBlogPost(response.data.data);
         } catch (error: unknown) {
             console.error("❌ Error updating blog post:", error);
             
@@ -773,7 +964,7 @@ class BlogService {
                 if (error.response?.status === 404) {
                     try {
                         const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/blog/${id}`, data);
-                        return response.data.data;
+                        return processBlogPost(response.data.data);
                     } catch (altError: unknown) {
                         throw altError;
                     }
@@ -824,10 +1015,14 @@ class BlogService {
             const endpoint = queryString ? `/api/blog?${queryString}` : "/api/blog";
             
             const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
-            console.log("✅ All posts fetched:", response.data.data?.length || 0);
+            
+            const rawPosts = response.data.data;
+            const processedPosts = processBlogPosts(rawPosts);
+            
+            console.log("✅ All posts fetched:", processedPosts.length);
             
             return {
-                posts: response.data.data,
+                posts: processedPosts,
                 count: response.data.count || 0,
                 totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
             };
@@ -850,8 +1045,11 @@ class BlogService {
                     const endpoint = qs ? `/blog?${qs}` : "/blog";
                     
                     const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
+                    const rawPosts = response.data.data;
+                    const processedPosts = processBlogPosts(rawPosts);
+                    
                     return {
-                        posts: response.data.data,
+                        posts: processedPosts,
                         count: response.data.count || 0,
                         totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
                     };
@@ -869,12 +1067,13 @@ class BlogService {
             console.log("🔍 Fetching post by ID:", id);
             const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/api/blog/${id}`);
             console.log("✅ Post fetched by ID");
-            return response.data.data;
+            
+            return processBlogPost(response.data.data);
         } catch (error: unknown) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 try {
                     const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/blog/${id}`);
-                    return response.data.data;
+                    return processBlogPost(response.data.data);
                 } catch (altError: unknown) {
                     throw altError;
                 }
@@ -1101,13 +1300,13 @@ class BlogService {
         return this.formatFileSize(estimatedSize);
     }
 
-    // Category utility methods
+    // Category utility methods with proper type safety
     getPostCategories(post: BlogPost): BlogCategory[] {
-        return post.categories || [BlogCategory.NEWSROOM];
+        return post.categories; // Already processed to be array
     }
 
     hasCategory(post: BlogPost, category: BlogCategory): boolean {
-        return this.getPostCategories(post).includes(category);
+        return post.categories.includes(category);
     }
 
     filterPostsByCategory(posts: BlogPost[], category: BlogCategory): BlogPost[] {
@@ -1166,3 +1365,6 @@ class BlogService {
 
 // Export the singleton instance
 export const blogService = new BlogService();
+
+// Export utility functions for external use
+export { normalizeCategories, processBlogPost, processBlogPosts };

@@ -67,149 +67,215 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // Initialize form data when modal opens or post changes
     useEffect(() => {
-        if (post) {
-            setFormData({
-                title: post.title || "",
-                content: post.content || "",
-                excerpt: post.excerpt || "",
-                featured_image: post.featured_image || "",
-                uploaded_image: post.uploaded_image || "",
-                uploaded_image_filename: post.uploaded_image_filename || "",
-                uploaded_image_content_type: post.uploaded_image_content_type || "",
-                is_published: post.is_published || false,
-                is_featured: post.is_featured || false,
-                categories: post.categories && post.categories.length > 0 
-                    ? post.categories 
-                    : [BlogCategory.NEWSROOM],
-            });
+    if (post) {
+        // Ensure categories is always an array with proper validation
+        let postCategories: BlogCategory[];
+        
+        if (Array.isArray(post.categories) && post.categories.length > 0) {
+            // Filter to ensure only valid categories
+            postCategories = post.categories.filter(cat => 
+                Object.values(BlogCategory).includes(cat)
+            );
+            
+            // If no valid categories remain, use default
+            if (postCategories.length === 0) {
+                postCategories = [BlogCategory.NEWSROOM];
+            }
         } else {
-            setFormData({
-                title: "",
-                content: "",
-                excerpt: "",
-                featured_image: "",
-                uploaded_image: "",
-                uploaded_image_filename: "",
-                uploaded_image_content_type: "",
-                is_published: false,
-                is_featured: false,
-                categories: [BlogCategory.NEWSROOM],
-            });
+            // Handle non-array or empty cases
+            postCategories = [BlogCategory.NEWSROOM];
         }
-        setErrors({});
-    }, [post, isOpen]);
+
+        console.log(`🔧 Initializing form with post categories:`, {
+            originalCategories: post.categories,
+            processedCategories: postCategories,
+            originalType: typeof post.categories,
+            processedType: typeof postCategories
+        });
+
+        setFormData({
+            title: post.title || "",
+            content: post.content || "",
+            excerpt: post.excerpt || "",
+            featured_image: post.featured_image || "",
+            uploaded_image: post.uploaded_image || "",
+            uploaded_image_filename: post.uploaded_image_filename || "",
+            uploaded_image_content_type: post.uploaded_image_content_type || "",
+            is_published: post.is_published || false,
+            is_featured: post.is_featured || false,
+            categories: postCategories,
+        });
+    } else {
+        // Reset form for new post
+        console.log(`🆕 Initializing form for new post`);
+        setFormData({
+            title: "",
+            content: "",
+            excerpt: "",
+            featured_image: "",
+            uploaded_image: "",
+            uploaded_image_filename: "",
+            uploaded_image_content_type: "",
+            is_published: false,
+            is_featured: false,
+            categories: [BlogCategory.NEWSROOM],
+        });
+    }
+    setErrors({});
+}, [post, isOpen]);
 
     const validateForm = (): boolean => {
-        const newErrors: Record<string, string> = {};
+    const newErrors: Record<string, string> = {};
 
-        if (!formData.title.trim()) {
-            newErrors.title = "Title is required";
-        } else if (formData.title.length > 200) {
-            newErrors.title = "Title must be less than 200 characters";
-        }
+    // Title validation
+    if (!formData.title.trim()) {
+        newErrors.title = "Title is required";
+    } else if (formData.title.length > 200) {
+        newErrors.title = "Title must be less than 200 characters";
+    }
 
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = formData.content;
-        const textContent = tempDiv.textContent || "";
+    // Content validation
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = formData.content;
+    const textContent = tempDiv.textContent || "";
 
-        if (!textContent.trim()) {
-            newErrors.content = "Content is required";
-        } else if (textContent.length < 10) {
-            newErrors.content = "Content must be at least 10 characters";
-        }
+    if (!textContent.trim()) {
+        newErrors.content = "Content is required";
+    } else if (textContent.length < 10) {
+        newErrors.content = "Content must be at least 10 characters";
+    }
 
-        if (formData.excerpt && formData.excerpt.length > 500) {
-            newErrors.excerpt = "Excerpt must be less than 500 characters";
-        }
+    // Excerpt validation
+    if (formData.excerpt && formData.excerpt.length > 500) {
+        newErrors.excerpt = "Excerpt must be less than 500 characters";
+    }
 
-        if (formData.featured_image?.trim()) {
-            try {
-                new URL(formData.featured_image);
-                if (!/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(formData.featured_image)) {
-                    newErrors.featured_image = "Must be a valid image URL";
-                }
-            } catch {
-                newErrors.featured_image = "Must be a valid URL";
+    // Featured image URL validation
+    if (formData.featured_image?.trim()) {
+        try {
+            new URL(formData.featured_image);
+            if (!/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(formData.featured_image)) {
+                newErrors.featured_image = "Must be a valid image URL";
             }
+        } catch {
+            newErrors.featured_image = "Must be a valid URL";
         }
+    }
 
-        // Validate uploaded image data integrity
-        if (formData.uploaded_image) {
-            if (!formData.uploaded_image_filename) {
-                newErrors.uploaded_image = "Image filename is missing";
-            }
-            if (!formData.uploaded_image_content_type) {
-                newErrors.uploaded_image = "Image content type is missing";
-            }
-            if (!formData.uploaded_image.startsWith('data:image/')) {
-                newErrors.uploaded_image = "Invalid image data format";
-            }
+    // Uploaded image validation
+    if (formData.uploaded_image) {
+        if (!formData.uploaded_image_filename) {
+            newErrors.uploaded_image = "Image filename is missing";
         }
-
-        // Validate categories
-        if (!formData.categories || formData.categories.length === 0) {
-            newErrors.categories = "At least one category must be selected";
-        } else if (formData.categories.length > 4) {
-            newErrors.categories = "Maximum 4 categories can be selected";
+        if (!formData.uploaded_image_content_type) {
+            newErrors.uploaded_image = "Image content type is missing";
         }
+        if (!formData.uploaded_image.startsWith('data:image/')) {
+            newErrors.uploaded_image = "Invalid image data format";
+        }
+    }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
+    // Enhanced categories validation
+    const currentCategories = Array.isArray(formData.categories) ? formData.categories : [];
+    
+    console.log(`🔍 Validating categories:`, {
+        categories: formData.categories,
+        processedCategories: currentCategories,
+        isArray: Array.isArray(formData.categories),
+        length: currentCategories.length
+    });
+
+    if (currentCategories.length === 0) {
+        newErrors.categories = "At least one category must be selected";
+    } else if (currentCategories.length > 4) {
+        newErrors.categories = "Maximum 4 categories can be selected";
+    }
+
+    // Validate each category
+    const validCategories = Object.values(BlogCategory);
+    const hasInvalidCategory = currentCategories.some(cat => !validCategories.includes(cat));
+    if (hasInvalidCategory) {
+        newErrors.categories = "One or more selected categories are invalid";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+};
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    e.preventDefault();
 
-        if (!validateForm()) {
-            return;
+    if (!validateForm()) {
+        return;
+    }
+
+    try {   
+        setSubmitting(true);
+        setErrors({});
+        
+        // Ensure categories is always an array with at least one valid category
+        const currentCategories = Array.isArray(formData.categories) ? formData.categories : [BlogCategory.NEWSROOM];
+        const validCategories = currentCategories.filter(cat => 
+            Object.values(BlogCategory).includes(cat)
+        );
+        const finalCategories = validCategories.length > 0 ? validCategories : [BlogCategory.NEWSROOM];
+
+        console.log(`📤 Submitting form with categories:`, {
+            originalCategories: formData.categories,
+            processedCategories: currentCategories,
+            validCategories,
+            finalCategories
+        });
+
+        // Prepare form data
+        const submitData: BlogPostFormData = {
+            title: formData.title.trim(),
+            content: formData.content.trim(),
+            excerpt: formData.excerpt?.trim() || undefined,
+            featured_image: formData.featured_image?.trim() || undefined,
+            uploaded_image: formData.uploaded_image?.trim() || undefined,
+            uploaded_image_filename: formData.uploaded_image_filename?.trim() || undefined,
+            uploaded_image_content_type: formData.uploaded_image_content_type?.trim() || undefined,
+            is_published: formData.is_published,
+            is_featured: formData.is_featured,
+            categories: finalCategories,
+        };
+
+        // Remove undefined image fields
+        if (!submitData.uploaded_image) {
+            delete submitData.uploaded_image;
+            delete submitData.uploaded_image_filename;
+            delete submitData.uploaded_image_content_type;
         }
 
-        try {   
-            setSubmitting(true);
-            setErrors({});
-            
-            // Prepare form data, removing empty image fields
-            const submitData: BlogPostFormData = {
-                title: formData.title.trim(),
-                content: formData.content.trim(),
-                excerpt: formData.excerpt?.trim() || undefined,
-                featured_image: formData.featured_image?.trim() || undefined,
-                uploaded_image: formData.uploaded_image?.trim() || undefined,
-                uploaded_image_filename: formData.uploaded_image_filename?.trim() || undefined,
-                uploaded_image_content_type: formData.uploaded_image_content_type?.trim() || undefined,
-                is_published: formData.is_published,
-                is_featured: formData.is_featured,
-                categories: formData.categories && formData.categories.length > 0 
-                    ? formData.categories 
-                    : [BlogCategory.NEWSROOM],
-            };
-
-            // Remove undefined image fields to avoid sending empty data
-            if (!submitData.uploaded_image) {
-                delete submitData.uploaded_image;
-                delete submitData.uploaded_image_filename;
-                delete submitData.uploaded_image_content_type;
-            }
-
-            if (!submitData.featured_image) {
-                delete submitData.featured_image;
-            }
-
-            if (!submitData.excerpt) {
-                delete submitData.excerpt;
-            }
-
-            await onSubmit(submitData);
-            onClose();
-        } catch (error) {
-            setErrors({
-                submit: error instanceof Error ? error.message : "Failed to save blog post"
-            });
-        } finally {
-            setSubmitting(false);
+        if (!submitData.featured_image) {
+            delete submitData.featured_image;
         }
-    };
+
+        if (!submitData.excerpt) {
+            delete submitData.excerpt;
+        }
+
+        console.log("📋 Final submit data:", {
+            title: submitData.title,
+            categories: submitData.categories,
+            categoriesCount: submitData.categories.length,
+            isPublished: submitData.is_published
+        });
+
+        await onSubmit(submitData);
+        onClose();
+    } catch (error) {
+        console.error("❌ Error submitting blog post:", error);
+        setErrors({
+            submit: error instanceof Error ? error.message : "Failed to save blog post"
+        });
+    } finally {
+        setSubmitting(false);
+    }
+};
 
     const updateField = (
         field: keyof BlogPostFormData, 
@@ -245,22 +311,37 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
     };
 
     const handleCategoryChange = (category: BlogCategory, checked: boolean) => {
-        const currentCategories = formData.categories || [];
-        
-        if (checked) {
-            // Add category if not already present
-            if (!currentCategories.includes(category)) {
-                const newCategories = [...currentCategories, category];
-                updateField("categories", newCategories);
-            }
-        } else {
-            // Remove category, but ensure at least one remains
-            const newCategories = currentCategories.filter(c => c !== category);
-            if (newCategories.length > 0) {
-                updateField("categories", newCategories);
-            }
+    const currentCategories = Array.isArray(formData.categories) ? formData.categories : [BlogCategory.NEWSROOM];
+    
+    console.log(`🔄 Category change: ${category} = ${checked}`, {
+        currentCategories,
+        currentType: typeof formData.categories,
+        isArray: Array.isArray(formData.categories)
+    });
+    
+    if (checked) {
+        // Add category if not already present
+        if (!currentCategories.includes(category)) {
+            const newCategories = [...currentCategories, category];
+            console.log(`➕ Adding category ${category}:`, newCategories);
+            updateField("categories", newCategories);
         }
-    };
+    } else {
+        // Remove category, but ensure at least one remains
+        const newCategories = currentCategories.filter(c => c !== category);
+        if (newCategories.length > 0) {
+            console.log(`➖ Removing category ${category}:`, newCategories);
+            updateField("categories", newCategories);
+        } else {
+            // If trying to remove the last category, prevent it
+            console.warn(`⚠️ Cannot remove last category ${category}`);
+            setErrors(prev => ({ ...prev, categories: "At least one category must be selected" }));
+        }
+    }
+};
+
+    // Get current categories safely
+    const currentCategories = Array.isArray(formData.categories) ? formData.categories : [BlogCategory.NEWSROOM];
 
     if (!isOpen) {
         return null;
@@ -294,6 +375,7 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        {/* Title */}
                         <div>
                             <label className="block text-lg font-semibold text-gray-700 mb-2">
                                 Title <span className="text-red-500">*</span>
@@ -322,14 +404,14 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                                     <label
                                         key={option.value}
                                         className={`flex items-start p-4 bg-white rounded-lg border-2 cursor-pointer transition-all duration-200 hover:border-blue-300 ${
-                                            formData.categories.includes(option.value)
+                                            currentCategories.includes(option.value)
                                                 ? "border-blue-500 bg-blue-50"
                                                 : "border-gray-200"
                                         }`}
                                     >
                                         <input
                                             type="checkbox"
-                                            checked={formData.categories.includes(option.value)}
+                                            checked={currentCategories.includes(option.value)}
                                             onChange={(e) => handleCategoryChange(option.value, e.target.checked)}
                                             className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
                                             disabled={submitting}
@@ -351,7 +433,7 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                             </p>
                         </div>
 
-                        {/* Main Image Upload Section */}
+                        {/* Image Upload */}
                         <div>
                             <label className="block text-lg font-semibold text-gray-700 mb-3">
                                 Main Image
@@ -363,8 +445,8 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                                 onChange={handleImageUpload}
                                 disabled={submitting}
                                 error={errors.uploaded_image}
-                                maxSizeBytes={1024 * 1024} // 1MB final size
-                                maxOriginalSizeBytes={10 * 1024 * 1024} // 10MB original size
+                                maxSizeBytes={1024 * 1024}
+                                maxOriginalSizeBytes={10 * 1024 * 1024}
                                 acceptedTypes={['image/jpeg', 'image/png', 'image/gif', 'image/webp']}
                                 compressionOptions={{
                                     maxWidth: 1200,
@@ -374,11 +456,9 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                                 }}
                             />
                             {errors.uploaded_image && <p className="mt-2 text-sm text-red-600">{errors.uploaded_image}</p>}
-                            <p className="mt-2 text-sm text-gray-500">
-                                This image will be displayed prominently at the top of your blog post, right after the title.
-                            </p>
                         </div>
 
+                        {/* Excerpt and Featured Image */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-lg font-semibold text-gray-700 mb-2">Excerpt</label>
@@ -407,13 +487,10 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                                     disabled={submitting}
                                 />
                                 {errors.featured_image && <p className="mt-2 text-sm text-red-600">{errors.featured_image}</p>}
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Optional: External image URL for social media previews
-                                </p>
                             </div>
                         </div>
                         
-                        {/* RICH TEXT EDITOR */}
+                        {/* Content Editor */}
                         <div>
                             <label className="block text-lg font-semibold text-gray-700 mb-3">
                                 Content <span className="text-red-500">*</span>
@@ -428,7 +505,7 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                             {errors.content && <p className="mt-2 text-sm text-red-600">{errors.content}</p>}
                         </div>
 
-                        {/* PUBLISHING OPTIONS */}
+                        {/* Publishing Options */}
                         <div className="p-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <label className="flex items-center p-3 bg-white rounded-lg border cursor-pointer">
@@ -460,12 +537,16 @@ const BlogPostModal: React.FC<BlogPostModalProps> = ({
                                 </label>
                             </div>
                         </div>
+
+                        {/* Error Display */}
                         {errors.submit && (
                             <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
                                 <p className="text-sm text-red-700">{errors.submit}</p>
                             </div>
                         )}
                     </div>
+
+                    {/* Footer */}
                     <div className="flex items-center justify-between p-6 border-t bg-gray-50">
                         <div className="text-sm text-gray-500">
                             {post ? `Last updated: ${new Date(post.updated_at).toLocaleDateString()}` : "New post"}
