@@ -1,4 +1,11 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosResponse, AxiosError, isAxiosError } from "axios";
+
+export enum BlogCategory {
+    NEWSROOM = "newsroom",
+    THOUGHT_PIECES = "thought-pieces", 
+    ACHIEVEMENTS = "achievements",
+    AWARDS_RECOGNITION = "awards-recognition"
+}
 
 export interface BlogAuthor {
     id: string;
@@ -20,6 +27,7 @@ export interface BlogPost {
     is_published: boolean;
     is_featured: boolean;
     view_count: number;
+    categories: BlogCategory[];
     author: BlogAuthor;
     created_at: string;
     updated_at: string;
@@ -36,17 +44,18 @@ export interface BlogPostFormData {
     uploaded_image_content_type?: string;
     is_published: boolean;
     is_featured: boolean;
+    categories: BlogCategory[];
 }
 
 export interface BlogResponse {
-    statusCode: number;
+    status_code: number;
     message: string;
     data: BlogPost[];
     count?: number;
 }
 
 export interface BlogPostResponse {
-    statusCode: number;
+    status_code: number;
     message: string;
     data: BlogPost;
 }
@@ -58,12 +67,14 @@ export interface BlogStatistics {
     featured: number;
     recentlyPublished: number;
     totalViews: number;
+    byCategory: Record<BlogCategory, number>;
 }
 
 export interface ApiError {
     message: string;
     statusCode: number;
     error?: string;
+    details?: unknown;
 }
 
 export interface BlogPostQuery {
@@ -72,9 +83,9 @@ export interface BlogPostQuery {
     search?: string;
     isPublished?: boolean;
     isFeatured?: boolean;
+    categories?: BlogCategory[];
 }
 
-// New interfaces for image upload functionality
 export interface ImageUploadError {
     type: 'file_too_large' | 'invalid_type' | 'upload_failed' | 'processing_failed';
     message: string;
@@ -91,19 +102,73 @@ interface ApiErrorResponse {
     message?: string;
     error?: string;
     statusCode?: number;
+    details?: unknown;
 }
 
-class ApiServiceError extends Error {
-    public statusCode: number;
-    public originalError?: unknown;
+interface LoggingContext {
+    [key: string]: unknown;
+}
 
-    constructor(message: string, statusCode: number, originalError?: unknown) {
-        super(message);
-        this.name = "ApiServiceError";
-        this.statusCode = statusCode;
-        this.originalError = originalError;
+// Enhanced error logging utility with strict TypeScript compliance
+const logErrorDetails = (context: string, error: unknown): void => {
+    console.group(`🔴 ${context}`);
+    
+    try {
+        if (isAxiosError(error)) {
+            const axiosErrorDetails: LoggingContext = {
+                message: error.message || 'No message',
+                code: error.code || 'No code',
+                status: error.response?.status || 'No status',
+                statusText: error.response?.statusText || 'No status text',
+                url: error.config?.url || 'No URL',
+                method: error.config?.method || 'No method',
+                baseURL: error.config?.baseURL || 'No base URL',
+                responseData: error.response?.data || 'No response data',
+                requestData: error.config?.data || 'No request data',
+                headers: error.config?.headers || 'No headers'
+            };
+            
+            console.error("Axios Error Details:", axiosErrorDetails);
+            console.error("Raw Axios Error:", error);
+            
+        } else if (error instanceof Error) {
+            const standardErrorDetails: LoggingContext = {
+                name: error.name || 'No name',
+                message: error.message || 'No message',
+                stack: error.stack || 'No stack trace'
+            };
+            
+            console.error("Standard Error:", standardErrorDetails);
+            console.error("Raw Error Object:", error);
+            
+        } else if (error && typeof error === 'object' && error !== null) {
+            const objectErrorDetails: LoggingContext = {
+                type: typeof error,
+                constructor: (error as Record<string, unknown>).constructor?.constructor?.name || 'Unknown',
+                keys: Object.keys(error as Record<string, unknown>),
+                stringified: JSON.stringify(error),
+                valueOf: String(error)
+            };
+            
+            console.error("Object Error:", objectErrorDetails);
+            console.error("Raw Error Object:", error);
+            
+        } else {
+            const primitiveErrorDetails: LoggingContext = {
+                type: typeof error,
+                value: error,
+                stringified: String(error)
+            };
+            
+            console.error("Primitive Error:", primitiveErrorDetails);
+        }
+    } catch (loggingError: unknown) {
+        console.error("Error while logging error:", loggingError);
+        console.error("Original error (fallback):", error);
     }
-}
+    
+    console.groupEnd();
+};
 
 class BlogService {
     private api: AxiosInstance;
@@ -113,10 +178,12 @@ class BlogService {
     constructor() {
         this.baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
         
+        console.log("🚀 Initializing BlogService with baseURL:", this.baseURL);
+        
         // Authenticated API instance
         this.api = axios.create({
             baseURL: this.baseURL,
-            timeout: 60000, // Increased timeout for image uploads (60 seconds)
+            timeout: 60000,
             headers: {
                 "Content-Type": "application/json",
             },
@@ -127,7 +194,7 @@ class BlogService {
         // Public API instance without authentication
         this.publicApi = axios.create({
             baseURL: this.baseURL,
-            timeout: 60000, // Increased timeout for image uploads
+            timeout: 60000,
             headers: {
                 "Content-Type": "application/json",
             },
@@ -139,39 +206,80 @@ class BlogService {
     }
 
     private setupInterceptors(): void {
-        // Add authentication token to requests
+        // Request interceptor with enhanced logging
         this.api.interceptors.request.use(
             (config) => {
                 const token = this.getStoredToken();
                 if (token && config.headers) {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
+                
+                const requestInfo: LoggingContext = {
+                    method: config.method?.toUpperCase(),
+                    url: config.url,
+                    baseURL: config.baseURL,
+                    fullURL: `${config.baseURL || ''}${config.url || ''}`,
+                    hasToken: !!token,
+                    hasData: !!config.data,
+                    dataSize: config.data ? JSON.stringify(config.data).length : 0
+                };
+                
+                console.log("📤 API Request:", requestInfo);
+                
                 return config;
             },
             (error: unknown) => {
+                logErrorDetails("Request Interceptor Error", error);
                 return Promise.reject(error);
             }
         );
 
-        // Handle API responses and errors
-        const handleResponse = (response: AxiosResponse) => response;
-        const handleError = (error: AxiosError) => {
-            // Log errors except expected 404s during endpoint discovery
-            if (error.response?.status !== 404) {
-                console.error("API Error:", {
+        // Response interceptor with enhanced error handling
+        const handleResponse = (response: AxiosResponse): AxiosResponse => {
+            const responseInfo: LoggingContext = {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.config.url,
+                dataSize: response.data ? JSON.stringify(response.data).length : 0
+            };
+            
+            console.log("📥 API Response:", responseInfo);
+            return response;
+        };
+
+        const handleError = (error: unknown): Promise<never> => {
+            console.log("🚨 Interceptor caught error:", typeof error, error);
+            
+            // Enhanced error logging
+            logErrorDetails("API Response Error", error);
+            
+            // Only log non-404 errors for endpoint discovery
+            if (isAxiosError(error) && error.response?.status !== 404) {
+                const errorDetails: LoggingContext = {
                     status: error.response?.status,
                     statusText: error.response?.statusText,
                     url: error.config?.url,
                     method: error.config?.method,
-                    data: error.response?.data,
+                    baseURL: error.config?.baseURL,
+                    fullURL: `${error.config?.baseURL || ''}${error.config?.url || ''}`,
                     message: error.message,
-                });
+                    code: error.code,
+                    data: error.response?.data,
+                    timeout: error.config?.timeout
+                };
+                
+                console.error("🚨 Non-404 API Error Details:", errorDetails);
             }
 
-            if (error.response?.status === 401) {
+            if (isAxiosError(error) && error.response?.status === 401) {
                 this.handleUnauthorized();
             }
-            return Promise.reject(this.formatError(error));
+            
+            // Return the formatted error but preserve the original
+            const formattedError = this.formatError(error);
+            console.log("🔄 Formatted error:", formattedError);
+            
+            return Promise.reject(formattedError);
         };
 
         this.api.interceptors.response.use(handleResponse, handleError);
@@ -180,12 +288,14 @@ class BlogService {
 
     private getStoredToken(): string | null {
         if (typeof window !== "undefined") {
-            return localStorage.getItem("adminToken");
+            const token = localStorage.getItem("adminToken");
+            return token;
         }
         return null;
     }
 
     private handleUnauthorized(): void {
+        console.warn("🚫 Unauthorized access - clearing auth data");
         if (typeof window !== "undefined") {
             localStorage.removeItem("adminToken");
             localStorage.removeItem("adminData");
@@ -193,80 +303,165 @@ class BlogService {
         }
     }
 
-    private formatError(error: AxiosError): ApiError {
-        if (error.response?.data) {
-            const data = error.response.data as ApiErrorResponse;
+    private formatError(error: unknown): ApiError {
+        console.log("🔧 Formatting error:", typeof error, error);
+        
+        if (isAxiosError(error)) {
+            if (error.response?.data) {
+                const data = error.response.data as ApiErrorResponse;
+                return {
+                    message: data.message || error.message || "An error occurred",
+                    statusCode: error.response.status,
+                    error: data.error,
+                    details: data.details || data
+                };
+            }
+            
+            if (error.code === "ECONNABORTED") {
+                return {
+                    message: "Request timeout - please check if the backend server is running or try a smaller image",
+                    statusCode: 408,
+                };
+            }
+
+            if (error.code === "ECONNREFUSED") {
+                return {
+                    message: "Connection refused - backend server may not be running",
+                    statusCode: 503,
+                };
+            }
+
+            if (error.message?.includes("Network Error")) {
+                return {
+                    message: "Network error - please check your connection and ensure the backend server is running",
+                    statusCode: 0,
+                };
+            }
+
             return {
-                message: data.message || "An error occurred",
-                statusCode: error.response.status,
-                error: data.error,
+                message: error.message || "Network error",
+                statusCode: error.response?.status || 500,
             };
         }
         
-        if (error.code === "ECONNABORTED") {
+        if (error instanceof Error) {
             return {
-                message: "Request timeout - please check if the backend server is running or try a smaller image",
-                statusCode: 408,
+                message: error.message || "An unexpected error occurred",
+                statusCode: 500,
+                details: { name: error.name, stack: error.stack }
             };
         }
-
-        if (error.code === "ECONNREFUSED") {
-            return {
-                message: "Connection refused - backend server may not be running",
-                statusCode: 503,
-            };
-        }
-
-        // Handle network errors
-        if (error.message?.includes("Network Error")) {
-            return {
-                message: "Network error - please check your connection",
-                statusCode: 0,
-            };
-        }
-
+        
         return {
-            message: error.message || "Network error",
-            statusCode: error.response?.status || 500,
+            message: "An unknown error occurred",
+            statusCode: 500,
+            details: { errorType: typeof error, error: String(error) }
         };
     }
 
     /**
      * Attempts multiple API endpoints without logging expected 404 failures
      */
-    private async tryApiEndpoints<T>(endpoints: string[]): Promise<T> {
-        let lastError: AxiosError | null = null;
+    private async tryApiEndpoints<T>(
+        endpoints: string[], 
+        method: 'GET' | 'POST' = 'GET', 
+        data?: unknown
+    ): Promise<T> {
+        let lastError: unknown = null;
         const attemptedEndpoints: string[] = [];
 
         for (const endpoint of endpoints) {
             try {
-                const response: AxiosResponse<T> = await this.publicApi.get(endpoint);
-                return response.data;
-            } catch (error) {
-                if (error instanceof Error || (error && typeof error === "object")) {
-                    lastError = error as AxiosError;
+                let response: AxiosResponse<T>;
+                
+                if (method === 'POST') {
+                    response = await this.publicApi.post(endpoint, data);
+                } else {
+                    response = await this.publicApi.get(endpoint);
                 }
+                
+                return response.data;
+            } catch (error: unknown) {
+                lastError = error;
                 attemptedEndpoints.push(endpoint);
                 
-                // Only log non-404 errors (404s are expected when trying multiple endpoints)
-                if ((error as AxiosError)?.response?.status !== 404) {
+                // Only log non-404 errors
+                if (isAxiosError(error) && error.response?.status !== 404) {
                     console.warn(`Unexpected error from ${endpoint}:`, error);
                 }
             }
         }
 
-        console.warn(`All blog API endpoints failed. Attempted: ${attemptedEndpoints.join(", ")}`);
+        console.warn(`All API endpoints failed. Attempted: ${attemptedEndpoints.join(", ")}`);
         
         if (lastError) {
-            throw this.formatError(lastError);
+            throw lastError; // Preserve the original error
         }
         
-        throw new ApiServiceError("All API endpoints are unavailable", 503);
+        throw new Error("All API endpoints are unavailable");
+    }
+
+    // Enhanced validation with detailed logging
+    private validateFormData(data: BlogPostFormData): BlogPostFormData {
+        const validationInfo: LoggingContext = {
+            title: data.title?.length || 0,
+            content: data.content?.length || 0,
+            categories: data.categories,
+            hasUploadedImage: !!data.uploaded_image,
+            hasExcerpt: !!data.excerpt,
+            hasFeaturedImage: !!data.featured_image
+        };
+        
+        console.log("🔍 Validating form data:", validationInfo);
+
+        // Validate and fix categories
+        let validCategories = data.categories;
+        if (!validCategories || !Array.isArray(validCategories) || validCategories.length === 0) {
+            console.warn("⚠️ No valid categories provided, using default NEWSROOM");
+            validCategories = [BlogCategory.NEWSROOM];
+        }
+
+        // Filter out invalid categories
+        const validCategoryValues = Object.values(BlogCategory);
+        const filteredCategories = validCategories.filter((cat): cat is BlogCategory => 
+            validCategoryValues.includes(cat)
+        );
+        
+        if (filteredCategories.length === 0) {
+            console.warn("⚠️ All categories were invalid, using default NEWSROOM");
+            filteredCategories.push(BlogCategory.NEWSROOM);
+        }
+
+        const validatedData: BlogPostFormData = {
+            ...data,
+            title: data.title?.trim() || "",
+            content: data.content?.trim() || "",
+            excerpt: data.excerpt?.trim() || undefined,
+            categories: filteredCategories
+        };
+
+        const validatedInfo: LoggingContext = {
+            title: validatedData.title.length,
+            content: validatedData.content.length,
+            categories: validatedData.categories,
+            hasExcerpt: !!validatedData.excerpt
+        };
+        
+        console.log("✅ Validated data:", validatedInfo);
+
+        return validatedData;
     }
 
     // Image utility methods
     validateImageData(imageData: UploadedImageData): ImageUploadError | null {
-        // Check if base64 data is valid
+        const imageInfo: LoggingContext = {
+            size: imageData.size,
+            contentType: imageData.contentType,
+            filename: imageData.filename
+        };
+        
+        console.log("🖼️ Validating image data:", imageInfo);
+
         if (!imageData.base64.startsWith('data:image/')) {
             return {
                 type: 'invalid_type',
@@ -274,7 +469,6 @@ class BlogService {
             };
         }
 
-        // More accurate size calculation for base64
         const base64Data = imageData.base64.split(',')[1] || imageData.base64;
         const sizeInBytes = base64Data.length;
         const maxSize = 2 * 1024 * 1024; // 2MB for base64 string
@@ -286,8 +480,7 @@ class BlogService {
             };
         }
 
-        // Check content type
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        const validTypes: string[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (!validTypes.includes(imageData.contentType)) {
             return {
                 type: 'invalid_type',
@@ -298,76 +491,252 @@ class BlogService {
         return null;
     }
 
-    // Admin Methods (require authentication)
-
+    // Enhanced createPost with comprehensive error handling
     async createPost(data: BlogPostFormData): Promise<BlogPost> {
+        console.group("🚀 Creating Blog Post");
+        
+        // Validate the form data first (moved outside try block to be accessible in catch)
+        const validatedData = this.validateFormData(data);
+        
         try {
-            console.log("Creating blog post with data size:", {
-                title: data.title?.length || 0,
-                content: data.content?.length || 0,
-                hasUploadedImage: !!data.uploaded_image,
-                imageSize: data.uploaded_image ? `${Math.round(data.uploaded_image.length / 1024)}KB` : 'N/A'
-            });
-            
             // Validate uploaded image if present
-            if (data.uploaded_image && data.uploaded_image_filename && data.uploaded_image_content_type) {
+            if (validatedData.uploaded_image && validatedData.uploaded_image_filename && validatedData.uploaded_image_content_type) {
+                console.log("🖼️ Validating uploaded image...");
                 const imageData: UploadedImageData = {
-                    base64: data.uploaded_image,
-                    filename: data.uploaded_image_filename,
-                    contentType: data.uploaded_image_content_type,
-                    size: data.uploaded_image.length
+                    base64: validatedData.uploaded_image,
+                    filename: validatedData.uploaded_image_filename,
+                    contentType: validatedData.uploaded_image_content_type,
+                    size: validatedData.uploaded_image.length
                 };
                 
                 const validationError = this.validateImageData(imageData);
                 if (validationError) {
                     throw new Error(`Image validation failed: ${validationError.message}`);
                 }
+                console.log("✅ Image validation passed");
             }
+
+            console.log("📤 Sending POST request to /api/blog");
+            console.log("📦 Request payload size:", JSON.stringify(validatedData).length, "bytes");
             
-            const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", data);
-            console.log("Blog post created successfully:", response.data);
+            const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", validatedData);
+            
+            const successInfo: LoggingContext = {
+                id: response.data.data.id,
+                title: response.data.data.title,
+                categories: response.data.data.categories
+            };
+            
+            console.log("✅ Blog post created successfully:", successInfo);
+            
+            console.groupEnd();
             return response.data.data;
-        } catch (error) {
-            console.error("Error creating blog post:", error);
-            const axiosError = error as AxiosError;
             
-            // Handle specific error types
-            if (axiosError.response?.status === 413) {
-                throw new Error("Image file is too large. Please compress the image and try again.");
-            }
+        } catch (error: unknown) {
+            console.groupEnd();
             
-            if (axiosError.response?.status === 400) {
-                const errorData = axiosError.response.data as any;
-                if (errorData.message && errorData.message.includes('too large')) {
-                    throw new Error("Request payload too large. Please use a smaller image.");
+            // Log the raw error before processing
+            console.error("🚨 Raw createPost error:", error);
+            logErrorDetails("Blog Post Creation Failed", error);
+            
+            if (isAxiosError(error)) {
+                if (error.response?.status === 413) {
+                    throw new Error("Image file is too large. Please compress the image and try again.");
                 }
-                throw new Error(errorData.message || "Invalid request data");
-            }
-            
-            // Try alternative endpoint if primary fails with 404
-            if (axiosError.response?.status === 404) {
-                try {
-                    const response: AxiosResponse<BlogPostResponse> = await this.api.post("/blog", data);
-                    console.log("Blog post created via alternative endpoint:", response.data);
-                    return response.data.data;
-                } catch (altError) {
-                    console.error("Alternative endpoint also failed:", altError);
-                    throw altError;
+                
+                if (error.response?.status === 400) {
+                    const errorData = error.response.data as ApiErrorResponse;
+                    if (errorData?.message && errorData.message.includes('too large')) {
+                        throw new Error("Request payload too large. Please use a smaller image.");
+                    }
+                    throw new Error(errorData?.message || "Invalid request data. Please check your form inputs.");
                 }
+
+                if (error.response?.status === 401) {
+                    throw new Error("Authentication failed. Please log in again.");
+                }
+
+                if (error.response?.status === 403) {
+                    throw new Error("You don't have permission to create blog posts.");
+                }
+
+                if (error.response?.status === 500) {
+                    throw new Error("Server error. Please try again later or contact support.");
+                }
+                
+                // Try alternative endpoint if primary fails with 404
+                if (error.response?.status === 404) {
+                    console.log("🔄 Trying alternative endpoint /blog");
+                    try {
+                        const response: AxiosResponse<BlogPostResponse> = await this.api.post("/blog", validatedData);
+                        console.log("✅ Blog post created via alternative endpoint");
+                        return response.data.data;
+                    } catch (altError: unknown) {
+                        logErrorDetails("Alternative Endpoint Failed", altError);
+                        throw new Error("Blog creation endpoint not found. Please check your API configuration.");
+                    }
+                }
+
+                if (error.code === "ECONNREFUSED") {
+                    throw new Error("Cannot connect to the server. Please ensure the backend is running and accessible.");
+                }
+
+                if (error.code === "ECONNABORTED") {
+                    throw new Error("Request timed out. Please try with a smaller image or check your connection.");
+                }
+
+                throw new Error(error.message || "Network error occurred while creating the blog post.");
             }
             
-            throw error;
+            if (error instanceof Error) {
+                throw error;
+            }
+            
+            throw new Error("An unexpected error occurred while creating the blog post.");
         }
     }
 
+    // ===========================================
+    // PUBLIC METHODS (No authentication required)
+    // ===========================================
+
+    async getPublishedPosts(): Promise<BlogPost[]> {
+        try {
+            console.log("🔍 Fetching published posts...");
+            const endpoints = ["/api/blog/published", "/blog/published"];
+            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+            console.log("✅ Published posts fetched:", response.data?.length || 0);
+            return response.data || [];
+        } catch (error: unknown) {
+            console.error("❌ Error fetching published posts:", error);
+            return [];
+        }
+    }
+
+    async getPostsByCategory(category: BlogCategory): Promise<BlogPost[]> {
+        try {
+            console.log(`🔍 Fetching posts for category: ${category}`);
+            const endpoints = [
+                `/api/blog/category/${category}`,
+                `/blog/category/${category}`
+            ];
+            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+            console.log(`✅ Category posts fetched for ${category}:`, response.data?.length || 0);
+            return response.data || [];
+        } catch (error: unknown) {
+            console.error(`❌ Error fetching posts for category ${category}:`, error);
+            return [];
+        }
+    }
+
+    async getFeaturedPosts(limit?: number): Promise<BlogPost[]> {
+        try {
+            console.log("🔍 Fetching featured posts...");
+            const endpoints = [
+                limit ? `/api/blog/featured?limit=${limit}` : "/api/blog/featured",
+                limit ? `/blog/featured?limit=${limit}` : "/blog/featured"
+            ];
+            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+            console.log("✅ Featured posts fetched:", response.data?.length || 0);
+            return response.data || [];
+        } catch (error: unknown) {
+            console.error("❌ Error fetching featured posts:", error);
+            return [];
+        }
+    }
+
+    async getRecentPosts(limit?: number): Promise<BlogPost[]> {
+        try {
+            console.log("🔍 Fetching recent posts...");
+            const endpoints = [
+                limit ? `/api/blog/recent?limit=${limit}` : "/api/blog/recent",
+                limit ? `/blog/recent?limit=${limit}` : "/blog/recent"
+            ];
+            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+            console.log("✅ Recent posts fetched:", response.data?.length || 0);
+            return response.data || [];
+        } catch (error: unknown) {
+            console.error("❌ Error fetching recent posts:", error);
+            return [];
+        }
+    }
+
+    async getPostBySlug(slug: string): Promise<BlogPost | null> {
+        try {
+            console.log(`🔍 Fetching post by slug: ${slug}`);
+            const endpoints = [`/api/blog/slug/${slug}`, `/blog/slug/${slug}`];
+            const response = await this.tryApiEndpoints<BlogPostResponse>(endpoints);
+            console.log(`✅ Post fetched by slug: ${slug}`);
+            return response.data;
+        } catch (error: unknown) {
+            const apiError = error as ApiError;
+            if (apiError.statusCode === 404) {
+                console.log(`ℹ️ Post not found with slug: ${slug}`);
+                return null;
+            }
+            console.error(`❌ Error fetching post by slug ${slug}:`, error);
+            return null;
+        }
+    }
+
+    async incrementViewCount(slug: string): Promise<number> {
+        try {
+            console.log(`🔍 Incrementing view count for: ${slug}`);
+            const endpoints = [
+                `/api/blog/slug/${slug}/view`,
+                `/blog/slug/${slug}/view`
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response: AxiosResponse<{ view_count: number }> = await this.publicApi.post(endpoint);
+                    console.log(`✅ View count incremented for ${slug}:`, response.data.view_count);
+                    return response.data.view_count || 0;
+                } catch (error: unknown) {
+                    if (isAxiosError(error) && error.response?.status !== 404) {
+                        console.warn(`Unexpected error from ${endpoint}:`, error);
+                    }
+                }
+            }
+            
+            console.warn("All view count increment endpoints failed");
+            return 0;
+        } catch (error: unknown) {
+            console.error("❌ Error incrementing view count:", error);
+            return 0;
+        }
+    }
+
+    async searchPosts(searchTerm: string, onlyPublished: boolean = true): Promise<BlogPost[]> {
+        try {
+            console.log(`🔍 Searching posts: "${searchTerm}"`);
+            const params = new URLSearchParams();
+            params.append("q", searchTerm);
+            if (onlyPublished !== undefined) {
+                params.append("published", onlyPublished.toString());
+            }
+
+            const endpoints = [
+                `/api/blog/search?${params.toString()}`,
+                `/blog/search?${params.toString()}`
+            ];
+            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
+            console.log(`✅ Search results for "${searchTerm}":`, response.data?.length || 0);
+            return response.data || [];
+        } catch (error: unknown) {
+            console.error(`❌ Error searching posts for "${searchTerm}":`, error);
+            return [];
+        }
+    }
+
+    // ===========================================
+    // ADMIN METHODS (Require authentication)
+    // ===========================================
+
     async updatePost(id: string, data: Partial<BlogPostFormData>): Promise<BlogPost> {
         try {
-            console.log("Updating blog post:", id, {
-                hasUploadedImage: !!data.uploaded_image,
-                imageSize: data.uploaded_image ? `${Math.round(data.uploaded_image.length / 1024)}KB` : 'N/A'
-            });
+            console.log("📝 Updating blog post:", id);
             
-            // Validate uploaded image if present
             if (data.uploaded_image && data.uploaded_image_filename && data.uploaded_image_content_type) {
                 const imageData: UploadedImageData = {
                     base64: data.uploaded_image,
@@ -383,30 +752,31 @@ class BlogService {
             }
             
             const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/api/blog/${id}`, data);
+            console.log("✅ Blog post updated successfully");
             return response.data.data;
-        } catch (error) {
-            console.error("Error updating blog post:", error);
-            const axiosError = error as AxiosError;
+        } catch (error: unknown) {
+            console.error("❌ Error updating blog post:", error);
             
-            // Handle specific error types
-            if (axiosError.response?.status === 413) {
-                throw new Error("Image file is too large. Please compress the image and try again.");
-            }
-            
-            if (axiosError.response?.status === 400) {
-                const errorData = axiosError.response.data as any;
-                if (errorData.message && errorData.message.includes('too large')) {
-                    throw new Error("Request payload too large. Please use a smaller image.");
+            if (isAxiosError(error)) {
+                if (error.response?.status === 413) {
+                    throw new Error("Image file is too large. Please compress the image and try again.");
                 }
-                throw new Error(errorData.message || "Invalid request data");
-            }
-            
-            if (axiosError.response?.status === 404) {
-                try {
-                    const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/blog/${id}`, data);
-                    return response.data.data;
-                } catch (altError) {
-                    throw altError;
+                
+                if (error.response?.status === 400) {
+                    const errorData = error.response.data as ApiErrorResponse;
+                    if (errorData.message && errorData.message.includes('too large')) {
+                        throw new Error("Request payload too large. Please use a smaller image.");
+                    }
+                    throw new Error(errorData.message || "Invalid request data");
+                }
+                
+                if (error.response?.status === 404) {
+                    try {
+                        const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/blog/${id}`, data);
+                        return response.data.data;
+                    } catch (altError: unknown) {
+                        throw altError;
+                    }
                 }
             }
             
@@ -416,27 +786,29 @@ class BlogService {
 
     async deletePost(id: string): Promise<void> {
         try {
+            console.log("🗑️ Deleting blog post:", id);
             await this.api.delete(`/api/blog/${id}`);
+            console.log("✅ Blog post deleted successfully");
             return;
-        } catch (error) {
-            const axiosError = error as AxiosError;
-            
-            if (axiosError.response?.status === 404) {
+        } catch (error: unknown) {
+            if (isAxiosError(error) && error.response?.status === 404) {
                 try {
                     await this.api.delete(`/blog/${id}`);
+                    console.log("✅ Blog post deleted via alternative endpoint");
                     return;
-                } catch (altError) {
+                } catch (altError: unknown) {
                     throw altError;
                 }
             }
             
-            console.error("Error deleting blog post:", error);
+            console.error("❌ Error deleting blog post:", error);
             throw error;
         }
     }
 
     async getAllPosts(query?: BlogPostQuery): Promise<{ posts: BlogPost[]; count: number; totalPages: number }> {
         try {
+            console.log("🔍 Fetching all posts with query:", query);
             const params = new URLSearchParams();
             
             if (query?.page) params.append("page", query.page.toString());
@@ -444,30 +816,37 @@ class BlogService {
             if (query?.search) params.append("search", query.search);
             if (query?.isPublished !== undefined) params.append("isPublished", query.isPublished.toString());
             if (query?.isFeatured !== undefined) params.append("isFeatured", query.isFeatured.toString());
+            if (query?.categories && query.categories.length > 0) {
+                query.categories.forEach(category => params.append("categories", category));
+            }
 
             const queryString = params.toString();
             const endpoint = queryString ? `/api/blog?${queryString}` : "/api/blog";
             
             const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
+            console.log("✅ All posts fetched:", response.data.data?.length || 0);
+            
             return {
                 posts: response.data.data,
                 count: response.data.count || 0,
                 totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
             };
-        } catch (error) {
-            console.error("Error fetching all posts:", error);
-            const axiosError = error as AxiosError;
+        } catch (error: unknown) {
+            console.error("❌ Error fetching all posts:", error);
             
-            if (axiosError.response?.status === 404) {
+            if (isAxiosError(error) && error.response?.status === 404) {
                 try {
-                    const queryString = new URLSearchParams();
-                    if (query?.page) queryString.append("page", query.page.toString());
-                    if (query?.limit) queryString.append("limit", query.limit.toString());
-                    if (query?.search) queryString.append("search", query.search);
-                    if (query?.isPublished !== undefined) queryString.append("isPublished", query.isPublished.toString());
-                    if (query?.isFeatured !== undefined) queryString.append("isFeatured", query.isFeatured.toString());
+                    const params = new URLSearchParams();
+                    if (query?.page) params.append("page", query.page.toString());
+                    if (query?.limit) params.append("limit", query.limit.toString());
+                    if (query?.search) params.append("search", query.search);
+                    if (query?.isPublished !== undefined) params.append("isPublished", query.isPublished.toString());
+                    if (query?.isFeatured !== undefined) params.append("isFeatured", query.isFeatured.toString());
+                    if (query?.categories && query.categories.length > 0) {
+                        query.categories.forEach(category => params.append("categories", category));
+                    }
 
-                    const qs = queryString.toString();
+                    const qs = params.toString();
                     const endpoint = qs ? `/blog?${qs}` : "/blog";
                     
                     const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
@@ -476,7 +855,7 @@ class BlogService {
                         count: response.data.count || 0,
                         totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
                     };
-                } catch (altError) {
+                } catch (altError: unknown) {
                     throw altError;
                 }
             }
@@ -487,161 +866,79 @@ class BlogService {
 
     async getPostById(id: string): Promise<BlogPost> {
         try {
+            console.log("🔍 Fetching post by ID:", id);
             const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/api/blog/${id}`);
+            console.log("✅ Post fetched by ID");
             return response.data.data;
-        } catch (error) {
-            const axiosError = error as AxiosError;
-            
-            if (axiosError.response?.status === 404) {
+        } catch (error: unknown) {
+            if (isAxiosError(error) && error.response?.status === 404) {
                 try {
                     const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/blog/${id}`);
                     return response.data.data;
-                } catch (altError) {
+                } catch (altError: unknown) {
                     throw altError;
                 }
             }
             
-            console.error("Error fetching post by ID:", error);
+            console.error("❌ Error fetching post by ID:", error);
             throw error;
         }
     }
 
     async getStatistics(): Promise<BlogStatistics> {
         try {
-            const response = await this.api.get("/api/blog/statistics");
+            console.log("📊 Fetching blog statistics");
+            const response: AxiosResponse<{ data: BlogStatistics }> = await this.api.get("/api/blog/statistics");
+            console.log("✅ Statistics fetched");
             return response.data.data;
-        } catch (error) {
-            const axiosError = error as AxiosError;
-            
-            if (axiosError.response?.status === 404) {
+        } catch (error: unknown) {
+            if (isAxiosError(error) && error.response?.status === 404) {
                 try {
-                    const response = await this.api.get("/blog/statistics");
+                    const response: AxiosResponse<{ data: BlogStatistics }> = await this.api.get("/blog/statistics");
                     return response.data.data;
-                } catch (altError) {
+                } catch (altError: unknown) {
                     throw altError;
                 }
             }
             
-            console.error("Error fetching blog statistics:", error);
+            console.error("❌ Error fetching blog statistics:", error);
             throw error;
         }
     }
 
-    // Public Methods (no authentication required)
+    // ===========================================
+    // UTILITY METHODS
+    // ===========================================
 
-    async getPublishedPosts(): Promise<BlogPost[]> {
-        try {
-            const endpoints = ["/api/blog/published", "/blog/published"];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            return response.data || [];
-        } catch (error) {
-            console.error("Error fetching published posts after trying all endpoints:", error);
-            return [];
-        }
+    getCategoryLabel(category: BlogCategory): string {
+        const labels: Record<BlogCategory, string> = {
+            [BlogCategory.NEWSROOM]: "Newsroom",
+            [BlogCategory.THOUGHT_PIECES]: "Thought Pieces",
+            [BlogCategory.ACHIEVEMENTS]: "Achievements",
+            [BlogCategory.AWARDS_RECOGNITION]: "Awards & Recognition"
+        };
+        return labels[category] || category;
     }
 
-    async getFeaturedPosts(limit?: number): Promise<BlogPost[]> {
-        try {
-            const endpoints = [
-                limit ? `/api/blog/featured?limit=${limit}` : "/api/blog/featured",
-                limit ? `/blog/featured?limit=${limit}` : "/blog/featured"
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            return response.data || [];
-        } catch (error) {
-            console.error("Error fetching featured posts after trying all endpoints:", error);
-            return [];
-        }
+    getCategoryPath(category: BlogCategory): string {
+        const paths: Record<BlogCategory, string> = {
+            [BlogCategory.NEWSROOM]: "/newsroom",
+            [BlogCategory.THOUGHT_PIECES]: "/newsroom/thought-pieces",
+            [BlogCategory.ACHIEVEMENTS]: "/newsroom/achievements",
+            [BlogCategory.AWARDS_RECOGNITION]: "/newsroom/awards-recognition"
+        };
+        return paths[category] || "/newsroom";
     }
 
-    async getRecentPosts(limit?: number): Promise<BlogPost[]> {
-        try {
-            const endpoints = [
-                limit ? `/api/blog/recent?limit=${limit}` : "/api/blog/recent",
-                limit ? `/blog/recent?limit=${limit}` : "/blog/recent"
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            return response.data || [];
-        } catch (error) {
-            console.error("Error fetching recent posts after trying all endpoints:", error);
-            return [];
-        }
+    getCategoryDescription(category: BlogCategory): string {
+        const descriptions: Record<BlogCategory, string> = {
+            [BlogCategory.NEWSROOM]: "Latest news and updates from our company",
+            [BlogCategory.THOUGHT_PIECES]: "In-depth analysis and thought leadership articles",
+            [BlogCategory.ACHIEVEMENTS]: "Milestones, successes, and company achievements",
+            [BlogCategory.AWARDS_RECOGNITION]: "Awards, recognitions, and industry accolades"
+        };
+        return descriptions[category] || "";
     }
-
-    async getPostBySlug(slug: string): Promise<BlogPost | null> {
-        try {
-            const endpoints = [`/api/blog/slug/${slug}`, `/blog/slug/${slug}`];
-            const response = await this.tryApiEndpoints<BlogPostResponse>(endpoints);
-            return response.data;
-        } catch (error) {
-            const apiError = error as ApiError;
-            if (apiError.statusCode === 404) {
-                return null;
-            }
-            console.error("Error fetching post by slug:", error);
-            return null;
-        }
-    }
-
-    async incrementViewCount(slug: string): Promise<number> {
-        try {
-            const endpoints = [
-                `/api/blog/slug/${slug}/view`,
-                `/blog/slug/${slug}/view`
-            ];
-            
-            for (const endpoint of endpoints) {
-                try {
-                    const response = await this.publicApi.post(endpoint);
-                    return response.data.view_count || 0;
-                } catch (error) {
-                    const axiosError = error as AxiosError;
-                    if (axiosError.response?.status !== 404) {
-                        console.warn(`Unexpected error from ${endpoint}:`, error);
-                    }
-                }
-            }
-            
-            console.warn("All view count increment endpoints failed");
-            return 0;
-        } catch (error) {
-            console.error("Error incrementing view count:", error);
-            return 0;
-        }
-    }
-
-    async searchPosts(searchTerm: string, onlyPublished: boolean = true): Promise<BlogPost[]> {
-        try {
-            const params = new URLSearchParams();
-            params.append("q", searchTerm);
-            if (onlyPublished !== undefined) {
-                params.append("published", onlyPublished.toString());
-            }
-
-            const endpoints = [
-                `/api/blog/search?${params.toString()}`,
-                `/blog/search?${params.toString()}`
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            return response.data || [];
-        } catch (error) {
-            console.error("Error searching posts after trying all endpoints:", error);
-            return [];
-        }
-    }
-
-    async getPublishedCount(): Promise<number> {
-        try {
-            const endpoints = ["/api/blog/published", "/blog/published"];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            return response.count || 0;
-        } catch (error) {
-            console.error("Error fetching published count:", error);
-            return 0;
-        }
-    }
-
-    // Utility Methods
 
     formatDate(dateString: string): string {
         try {
@@ -650,7 +947,8 @@ class BlogService {
                 month: "long",
                 day: "numeric"
             });
-        } catch (error) {
+        } catch (error: unknown) {
+            console.error("Error formatting date:", error);
             return "Invalid date";
         }
     }
@@ -664,7 +962,8 @@ class BlogService {
                 hour: "2-digit",
                 minute: "2-digit"
             });
-        } catch (error) {
+        } catch (error: unknown) {
+            console.error("Error formatting datetime:", error);
             return "Invalid date";
         }
     }
@@ -701,7 +1000,8 @@ class BlogService {
         try {
             new URL(url);
             return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
-        } catch {
+        } catch (error: unknown) {
+            console.error("Error validating image URL:", error);
             return false;
         }
     }
@@ -777,7 +1077,7 @@ class BlogService {
             const byteArray = new Uint8Array(byteNumbers);
             const blob = new Blob([byteArray]);
             return URL.createObjectURL(blob);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Error creating blob URL:', error);
             return base64; // Fallback to base64
         }
@@ -800,6 +1100,69 @@ class BlogService {
         const estimatedSize = originalSize * 0.5; // 50% reduction estimate
         return this.formatFileSize(estimatedSize);
     }
+
+    // Category utility methods
+    getPostCategories(post: BlogPost): BlogCategory[] {
+        return post.categories || [BlogCategory.NEWSROOM];
+    }
+
+    hasCategory(post: BlogPost, category: BlogCategory): boolean {
+        return this.getPostCategories(post).includes(category);
+    }
+
+    filterPostsByCategory(posts: BlogPost[], category: BlogCategory): BlogPost[] {
+        return posts.filter(post => this.hasCategory(post, category));
+    }
+
+    // Connection test method
+    async testConnection(): Promise<{ success: boolean; message: string; details?: unknown }> {
+        console.log("🔗 Testing API connection...");
+        
+        try {
+            const response: AxiosResponse<unknown> = await this.publicApi.get('/health', { timeout: 5000 });
+            return {
+                success: true,
+                message: "API connection successful",
+                details: response.data
+            };
+        } catch (error: unknown) {
+            logErrorDetails("Connection Test Failed", error);
+            
+            if (isAxiosError(error)) {
+                if (error.code === "ECONNREFUSED") {
+                    return {
+                        success: false,
+                        message: "Connection refused - backend server is not running",
+                        details: { baseURL: this.baseURL, error: error.message }
+                    };
+                }
+                
+                if (error.code === "ECONNABORTED") {
+                    return {
+                        success: false,
+                        message: "Connection timeout - backend server is not responding",
+                        details: { baseURL: this.baseURL, timeout: error.config?.timeout }
+                    };
+                }
+                
+                return {
+                    success: false,
+                    message: `API error: ${error.message}`,
+                    details: { 
+                        status: error.response?.status,
+                        baseURL: this.baseURL 
+                    }
+                };
+            }
+            
+            return {
+                success: false,
+                message: "Unknown connection error",
+                details: { error: String(error) }
+            };
+        }
+    }
 }
 
+// Export the singleton instance
 export const blogService = new BlogService();
