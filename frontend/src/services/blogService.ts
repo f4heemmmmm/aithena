@@ -1258,7 +1258,7 @@ async getPostsByCategory(category: BlogCategory): Promise<BlogPost[]> {
         return !!(post.uploaded_image || post.featured_image);
     }
 
-    getImageAlternative(post: BlogPost): string {
+    getAlternativeImage(post: BlogPost): string {
         if (post.uploaded_image_filename) {
             return post.uploaded_image_filename;
         }
