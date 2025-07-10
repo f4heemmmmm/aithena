@@ -1,6 +1,5 @@
 import { JSX } from "react";
 import { Inter, DM_Sans } from "next/font/google";
-import { Linkedin, Mail, Users } from "lucide-react";
 
 const inter = Inter({ 
     subsets: ["latin"],
@@ -31,7 +30,7 @@ interface TeamSection {
 const teamSections: TeamSection[] = [
     {
         title: "The Founders",
-        description: "Our story began with a shared vision: to build something meaningful, impactful, and lasting. Founded by a passionate team of eight, our company brings together a diverse group of individuals who believe in challenging the status quo and creating solutions that make a difference.\n\nAt the heart of our journey are three shareholders  -  the core visionaries who laid the foundation, invested in the dream, and continue to drive our mission forward.\n\nAlongside them, our five founding members played an equally pivotal role, bringing their expertise, energy, and heart to shape the company in its earliest days.\n\nEach founder, whether shareholder or early member, brought unique perspectives and skills to the table  -  bound together by a shared commitment to excellence, innovation, and integrity.\n\nTogether, this founding team set the tone for who we are today: a company built not just on ideas, but on teamwork, trust, and a relentless pursuit of better.",
+        description: "Our story began with a shared vision: to build something meaningful, impactful, and lasting. Founded by a passionate team of eight, our company brings together a diverse group of individuals who believe in challenging the status quo and creating solutions that make a difference.\n\nAt the heart of our journey are three shareholders - the core visionaries who laid the foundation, invested in the dream, and continue to drive our mission forward.\n\nAlongside them, our five founding members played an equally pivotal role, bringing their expertise, energy, and heart to shape the company in its earliest days.\n\nEach founder, whether shareholder or early member, brought unique perspectives and skills to the table - bound together by a shared commitment to excellence, innovation, and integrity.\n\nTogether, this founding team set the tone for who we are today: a company built not just on ideas, but on teamwork, trust, and a relentless pursuit of better.",
         categories: {
             "Legal": [
                 { name: "Aaron Tan" },
@@ -75,15 +74,17 @@ const teamSections: TeamSection[] = [
         title: "Developers",
         description: "Our community of developers brings together a diverse range of technical expertise and academic backgrounds, united by a shared passion for building meaningful solutions.\n\nThey come from varied domains - from software engineering and machine learning to data science and cybersecurity - contributing deep, hands-on knowledge that powers our platform.\n\nWe're proud to be supported by talent from Singapore's top universities, including SMU, NUS, and NTU, with backgrounds spanning Bachelor's, Master's, and PhD programmes.\n\nWhether designing infrastructure, refining algorithms, or safeguarding our systems, their work reflects rigour, creativity, and a strong sense of purpose.",
         categories: {
-        "Frontend": [
-            { name: "Tiki" },
-            { name: "Faris Chew" }
-        ],
-        "Backend": [
-            { name: "Li Yang" },
-            { name: "Xavier Hau" }
-        ],
-        "Data Science": []
+            "Frontend": [
+                { name: "Tiki" },
+                { name: "Faris Chew" }
+            ],
+            "Backend": [
+                
+            ],
+            "Data Science": [
+                { name: "Li Yang" },
+                { name: "Xavier Hau" }
+            ]
         }
     },
     {

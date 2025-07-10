@@ -481,7 +481,6 @@ export default function CategoryPage({ category, title, description, currentPath
                                 </h2>
                                 {!searchTerm && (
                                     <div className = "flex items-center text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                        <Tag className = "h-4 w-4 mr-1" />
                                         {posts.length} article{posts.length !== 1 ? "s" : ""}
                                     </div>
                                 )}

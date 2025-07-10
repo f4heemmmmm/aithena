@@ -90,7 +90,7 @@ export default function ArticlesSection() {
                                 <div className = "relative overflow-hidden">
                                     <img
                                         src = {blogService.getMainImage(post) || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
-                                        alt = {blogService.getImageAlternative(post)}
+                                        alt = {blogService.getAlternativeImage(post)}
                                         className = {`w-full object-cover transition-transform duration-300 hover:scale-105 ${
                                             shouldBeMainCard ? "h-64" : "h-48"
                                         }`}
