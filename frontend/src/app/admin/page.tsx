@@ -6,44 +6,29 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { FileText, Shield, LogOut, PenTool, Plus, TrendingUp, Edit3, Eye, X } from 'lucide-react';
 import { useBlogPosts, useBlogStatistics } from '@/hooks/useBlog';
-import { BlogPost, BlogPostFormData } from '@/services/blogService';
-import BlogPostModal from '@/components/BlogPostModal';
-// Blog Posts Manager Component (updated to use new modal)
+import { BlogPost } from '@/services/blogService';
+
+// Blog Posts Manager Component (updated to use routing)
 interface BlogPostsManagerProps {
     posts: BlogPost[];
-    onCreatePost: (data: BlogPostFormData) => Promise<void>;
-    onUpdatePost: (id: string, data: BlogPostFormData) => Promise<void>;
     onDeletePost: (id: string) => Promise<void>;
     isLoading?: boolean;
 }
 
 const BlogPostsManager: React.FC<BlogPostsManagerProps> = ({
     posts,
-    onCreatePost,
-    onUpdatePost,
     onDeletePost,
     isLoading = false
 }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+    const router = useRouter();
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const handleModalSubmit = async (data: BlogPostFormData): Promise<void> => {
-        if (editingPost) {
-            await onUpdatePost(editingPost.id, data);
-        } else {
-            await onCreatePost(data);
-        }
-    };
-
     const handleEdit = (post: BlogPost): void => {
-        setEditingPost(post);
-        setIsModalOpen(true);
+        router.push(`/blog/edit/${post.id}`);
     };
 
     const handleCreate = (): void => {
-        setEditingPost(null);
-        setIsModalOpen(true);
+        router.push('/blog/create');
     };
 
     const handleDelete = async (id: string): Promise<void> => {
@@ -57,11 +42,6 @@ const BlogPostsManager: React.FC<BlogPostsManagerProps> = ({
                 setDeletingId(null);
             }
         }
-    };
-
-    const handleCloseModal = (): void => {
-        setIsModalOpen(false);
-        setEditingPost(null);
     };
 
     const formatDate = (dateString: string): string => {
@@ -174,15 +154,6 @@ const BlogPostsManager: React.FC<BlogPostsManagerProps> = ({
                     </ul>
                 </div>
             )}
-
-            {/* Updated Modal */}
-            <BlogPostModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                post={editingPost}
-                onSubmit={handleModalSubmit}
-                isLoading={isLoading}
-            />
         </div>
     );
 };
@@ -196,8 +167,6 @@ export default function AdminDashboard() {
     posts, 
     loading: postsLoading, 
     error: postsError, 
-    createPost, 
-    updatePost, 
     deletePost,
     refetch: refetchPosts 
   } = useBlogPosts();
@@ -213,26 +182,6 @@ export default function AdminDashboard() {
       router.push('/login');
     }
   }, [isAuthenticated, authLoading, router]);
-
-  const handleCreatePost = async (data: BlogPostFormData) => {
-    try {
-      await createPost(data);
-      await refetchStats(); // Refresh statistics after creating
-    } catch (error) {
-      console.error('Error creating blog post:', error);
-      throw error;
-    }
-  };
-
-  const handleUpdatePost = async (id: string, data: BlogPostFormData) => {
-    try {
-      await updatePost(id, data);
-      await refetchStats(); // Refresh statistics after updating
-    } catch (error) {
-      console.error('Error updating blog post:', error);
-      throw error;
-    }
-  };
 
   const handleDeletePost = async (id: string) => {
     try {
@@ -428,8 +377,6 @@ export default function AdminDashboard() {
               
               <BlogPostsManager
                 posts={posts}
-                onCreatePost={handleCreatePost}
-                onUpdatePost={handleUpdatePost}
                 onDeletePost={handleDeletePost}
                 isLoading={postsLoading}
               />
