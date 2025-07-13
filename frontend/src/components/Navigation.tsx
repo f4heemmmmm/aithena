@@ -1,5 +1,3 @@
-"use client";
-
 import LoginModal from "./LoginModal";
 import { X, Menu, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -83,7 +81,7 @@ export default function Navigation() {
             </div>
         );
     }
-
+    
     return (
         <>
             {/* MOBILE HEADER */}
@@ -113,18 +111,16 @@ export default function Navigation() {
                 </div>
 
                 <div className = "flex items-center space-x-4">
-                    {isAuthenticated && (
-                        <div className = "hidden md:flex items-center text-white">
-                            <span className = "text-sm">
-                                {administrator?.first_name} {administrator?.last_name}
-                            </span>
-                        </div>
-                    )}
+                   
                     <button
                         onClick = {handleAuthClick}
-                        className = "px-3 py-2 text-sm font-medium text-white hover:text-gray-300 transition-colors"
+                        className = {`px-6 py-2 rounded-full text-base font-medium transition-all duration-200 ${
+                            isAuthenticated
+                                ? "text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                : "text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+                        }`}
                     >
-                        {isAuthenticated ? "Logout" : "Login"}
+                        {isAuthenticated ? "Log Out" : "Login"}
                     </button>
                 </div>
             </div>
@@ -189,21 +185,7 @@ export default function Navigation() {
                             )}
                         </ul>
 
-                        {isAuthenticated && (
-                            <div className = "mt-8 pt-8 border-t border-gray-200">
-                                <div className = "flex items-center space-x-3">
-                                    <div className = "w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                                        <User className = "h-5 w-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <p className = "text-sm font-medium text-gray-900">
-                                            {administrator?.first_name} {administrator?.last_name}
-                                        </p>
-                                        <p className = "text-xs text-gray-500"> Administrator </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        
                     </div>
                     
                     <div className = "flex-shrink-0 px-8 py-6 border-t border-gray-200">
@@ -213,13 +195,13 @@ export default function Navigation() {
                                     setIsMobileMenuOpen(false);
                                     handleAuthClick();
                                 }}
-                                className = {`px-4 py-2 text-sm font-medium transition-colors ${
+                                className = {`px-6 py-2.5 rounded-full text-base font-medium transition-all duration-200 ${
                                     isAuthenticated
-                                        ? "text-red-600 hover:text-red-700"
-                                        : "text-blue-600 hover:text-blue-700"
+                                        ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        : "text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
                                 }`}
                             >
-                                {isAuthenticated ? "Logout" : "Login"}
+                                {isAuthenticated ? "Log Out" : "Login"}
                             </button>
                         </div>
                     </div>
