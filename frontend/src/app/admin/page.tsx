@@ -19,7 +19,7 @@ const dmSans = DM_Sans({
     weight: ["400", "500", "600", "700"]
 });
 
-export default function AdminDashboard() {
+export default function AdministratorDashboard() {
     const router = useRouter();
     const { isAuthenticated, administrator, logout, loading: authLoading } = useAuth();
     const { statistics: blogStats, loading: statsLoading, refetch: refetchStats } = useBlogStatistics();
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <main className = "py-12 px-6 lg:px-12">
+             <main className = "py-12 px-6 lg:px-12">
                 <div className = "grid grid-cols-1 lg:grid-cols-5 gap-12 max-w-none">
                     <div className = "lg:col-span-1 space-y-6">
                         <div className = "bg-white rounded-xl border border-slate-200 p-6">
@@ -144,11 +144,11 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className = "text-center p-4 bg-green-50 rounded-lg">
                                         <div className = {`${dmSans.className} text-2xl font-light text-green-600 mb-1`}>
-                                            {blogStats.recentlyPublished}
+                                            {blogStats.recently_published}
                                         </div>
                                         <div className = {`${inter.className} text-xs text-slate-600`}> Published This Week </div>
                                     </div>
-                                     <div className = "text-center p-4 bg-purple-50 rounded-lg">
+                                        <div className = "text-center p-4 bg-purple-50 rounded-lg">
                                         <div className = {`${dmSans.className} text-2xl font-light text-purple-600 mb-1`}>
                                             {blogStats.featured}
                                         </div>
@@ -191,5 +191,5 @@ export default function AdminDashboard() {
                 </div>
             </main>
         </div>
-    );
-};
+    )
+}

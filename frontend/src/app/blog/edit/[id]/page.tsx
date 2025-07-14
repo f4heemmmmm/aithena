@@ -257,7 +257,7 @@ export default function EditBlogPostPage() {
                 ...prev,
                 uploaded_image: imageData.base64,
                 uploaded_image_filename: imageData.filename,
-                uploaded_image_content_type: imageData.contentType,
+                uploaded_image_content_type: imageData.content_type,
             }));
         } else {
             setFormData(prev => ({
