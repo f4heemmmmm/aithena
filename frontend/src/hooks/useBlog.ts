@@ -220,3 +220,446 @@ export const useBlogPosts = (initialQuery?: BlogPostQuery): UseBlogPostsReturn =
         deletePost,
     };
 };
+
+export const useBlogPost = (id?: string): UseBlogPostReturn => {
+    const [loading, setLoading] = useState(!!id);
+    const [post, setPost] = useState<BlogPost | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPost = useCallback(async (postId: string): Promise<void> => {
+        try {
+            console.log("🔍 Fetching post by ID:", postId);
+            setLoading(true);
+            setError(null);
+            
+            const fetchedPost = await blogService.getPostByID(postId);
+            console.log("✅ Post fetched successfully:", fetchedPost.title);
+            setPost(fetchedPost);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error fetching post:", err);
+            setError(errorMessage);
+            setPost(null);
+        } finally {
+            setLoading(false);
+        }
+    }, []); 
+
+    const updatePost = useCallback(async (data: Partial<BlogPostFormData>): Promise<BlogPost> => {
+        if (!post) {
+            throw new Error("No post to update");
+        }
+        try {
+            console.log("📝 Updating current post:", post.id);
+            setError(null);
+            
+            const updatedPost = await blogService.updatePost(post.id, data);
+            console.log("✅ Current post updated successfully");
+            setPost(updatedPost);
+            return updatedPost;
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error updating current post:", err);
+            setError(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }, [post]);
+
+    const deletePost = useCallback(async (): Promise<void> => {
+        if (!post) {
+            throw new Error("No post to delete");
+        }
+        try {
+            console.log("🗑️ Deleting current post:", post.id);
+            setError(null);
+            
+            await blogService.deletePost(post.id);
+            console.log("✅ Current post deleted successfully");
+            setPost(null);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error deleting current post:", err);
+            setError(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }, [post]);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        if (id) {
+            console.log("🔄 Refetching post by ID:", id);
+            await fetchPost(id);
+        }
+    }, [fetchPost, id]);
+
+    useEffect(() => {
+        if (id) {
+            console.log("🎯 useBlogPost hook initialized for ID:", id);
+            fetchPost(id);
+        } else {
+            setPost(null);
+            setLoading(false);
+            setError(null);
+        }
+    }, [fetchPost, id]);
+
+    return {
+        post,
+        loading,
+        error,
+        refetch,
+        updatePost,
+        deletePost,
+    };
+};
+
+export const useBlogPostBySlug = (slug?: string): UseBlogPostBySlugReturn => {
+    const [loading, setLoading] = useState(!!slug);
+    const [notFound, setNotFound] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [post, setPost] = useState<BlogPost | null>(null);
+
+    const fetchPost = useCallback(async (postSlug: string): Promise<void> => {
+        try {
+            console.log("🔍 Fetching post by slug:", postSlug);
+            setLoading(true);
+            setError(null);
+            setNotFound(false);
+
+            const fetchedPost = await blogService.getPostBySlug(postSlug);
+            if (fetchedPost) {
+                console.log("✅ Post found by slug:", fetchedPost.title);
+                setPost(fetchedPost);
+                
+                if (fetchedPost.is_published) {
+                    try {
+                        await blogService.incrementViewCount(postSlug);
+                        console.log("👁️ View count incremented for:", postSlug);
+                    } catch (viewError) {
+                        console.warn("⚠️ Failed to increment view count:", viewError);
+                    }
+                }
+            } else {
+                console.log("❌ Post not found with slug:", postSlug);
+                setNotFound(true);
+                setPost(null);
+            }
+        } catch (err: unknown) {
+            const apiError = err as APIError;
+            if (apiError.status_code === 404) {
+                console.log("❌ Post not found (404):", postSlug);
+                setNotFound(true);
+                setPost(null);
+            } else {
+                const errorMessage = handleAPIError(err);
+                console.error("❌ Error fetching post by slug:", err);
+                setError(errorMessage);
+                setPost(null);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        if (slug) {
+            console.log("🔄 Refetching post by slug:", slug);
+            await fetchPost(slug);
+        }
+    }, [fetchPost, slug]);
+
+    useEffect(() => {
+        if (slug && slug.trim()) {
+            console.log("🎯 useBlogPostBySlug hook initialized for:", slug);
+            fetchPost(slug.trim());
+        } else {
+            setPost(null);
+            setLoading(false);
+            setError(null);
+            setNotFound(false);
+        }
+    }, [fetchPost, slug]);
+
+    return {
+        post,
+        loading,
+        error,
+        notFound,
+        refetch,
+    };
+};
+
+export const usePublishedPosts = (): UsePublishedPostsReturn => {
+    const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPosts = useCallback(async (): Promise<void> => {
+        try {
+            console.log("🔍 Fetching published posts...");
+            setLoading(true);
+            setError(null);
+            
+            const fetchedPosts = await blogService.getPublishedPosts();
+            console.log("✅ Published posts fetched:", fetchedPosts.length);
+            setPosts(fetchedPosts);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error fetching published posts:", err);
+            setError(errorMessage);
+            setPosts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        console.log("🔄 Refetching published posts...");
+        await fetchPosts();
+    }, [fetchPosts]);
+
+    useEffect(() => {
+        console.log("🎯 usePublishedPosts hook initialized");
+        fetchPosts();
+    }, [fetchPosts]);
+
+    return {
+        posts,
+        loading,
+        error,
+        refetch,
+    };
+};
+
+export const useFeaturedPosts = (limit?: number): UseFeaturedPostsReturn => {
+    const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPosts = useCallback(async (): Promise<void> => {
+        try {
+            console.log("🔍 Fetching featured posts...", limit ? `(limit: ${limit})` : "");
+            setLoading(true);
+            setError(null);
+            
+            const fetchedPosts = await blogService.getFeaturedPosts(limit);
+            console.log("✅ Featured posts fetched:", fetchedPosts.length);
+            setPosts(fetchedPosts);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error fetching featured posts:", err);
+            setError(errorMessage);
+            setPosts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [limit]);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        console.log("🔄 Refetching featured posts...");
+        await fetchPosts();
+    }, [fetchPosts]);
+
+    useEffect(() => {
+        console.log("🎯 useFeaturedPosts hook initialized");
+        fetchPosts();
+    }, [fetchPosts]);
+
+    return {
+        posts,
+        loading,
+        error,
+        refetch,
+    };
+};
+
+export const useRecentPosts = (limit?: number): UseRecentPostsReturn => {
+    const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPosts = useCallback(async (): Promise<void> => {
+        try {
+            console.log("🔍 Fetching recent posts...", limit ? `(limit: ${limit})` : "");
+            setLoading(true);
+            setError(null);
+            
+            const fetchedPosts = await blogService.getRecentPosts(limit);
+            console.log("✅ Recent posts fetched:", fetchedPosts.length);
+            setPosts(fetchedPosts);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error fetching recent posts:", err);
+            setError(errorMessage);
+            setPosts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [limit]);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        console.log("🔄 Refetching recent posts...");
+        await fetchPosts();
+    }, [fetchPosts]);
+
+    useEffect(() => {
+        console.log("🎯 useRecentPosts hook initialized");
+        fetchPosts();
+    }, [fetchPosts]);
+
+    return {
+        posts,
+        loading,
+        error,
+        refetch,
+    };
+};
+
+export const useBlogStatistics = (): UseBlogStatisticsReturn => {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [statistics, setStatistics] = useState<BlogStatistics | null>(null);
+
+    const fetchStatistics = useCallback(async (): Promise<void> => {
+        try {
+            console.log("📊 Fetching blog statistics...");
+            setLoading(true);
+            setError(null);
+            
+            const stats = await blogService.getStatistics();
+            console.log("✅ Statistics fetched:", {
+                total: stats.total,
+                published: stats.published,
+                drafts: stats.drafts,
+                featured: stats.featured
+            });
+            setStatistics(stats);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error fetching statistics:", err);
+            setError(errorMessage);
+            setStatistics(null);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        console.log("🔄 Refetching statistics...");
+        await fetchStatistics();
+    }, [fetchStatistics]);
+
+    useEffect(() => {
+        console.log("🎯 useBlogStatistics hook initialized");
+        fetchStatistics();
+    }, [fetchStatistics]);
+
+    return {
+        statistics,
+        loading,
+        error,
+        refetch,
+    };
+};
+
+export const useBlogSearch = (): UseBlogSearchReturn => {
+    const [loading, setLoading] = useState(false);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    const searchPosts = useCallback(async (searchTerm: string, onlyPublished: boolean = true): Promise<void> => {
+        if (!searchTerm.trim()) {
+            console.log("🔍 Empty search term, clearing results");
+            setPosts([]);
+            setError(null);
+            return;
+        }
+        
+        try {
+            console.log(`🔍 Searching posts: "${searchTerm}" (published only: ${onlyPublished})`);
+            setLoading(true);
+            setError(null);
+            
+            const results = await blogService.searchPosts(searchTerm.trim(), onlyPublished);
+            console.log(`✅ Search completed: ${results.length} results found`);
+            setPosts(results);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error("❌ Error searching posts:", err);
+            setError(errorMessage);
+            setPosts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const clearSearch = useCallback((): void => {
+        console.log("🧹 Clearing search results");
+        setPosts([]);
+        setError(null);
+        setLoading(false);
+    }, []);
+
+    return {
+        posts,
+        loading,
+        error,
+        searchPosts,
+        clearSearch,
+    };
+};
+
+export const useCategoryPosts = (category: BlogCategory) => {
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPosts = useCallback(async (): Promise<void> => {
+        try {
+            console.log(`🔍 Fetching posts for category: ${category}`);
+            setLoading(true);
+            setError(null);
+            
+            const fetchedPosts = await blogService.getPostsByCategory(category);
+            console.log(`✅ Category posts fetched for ${category}:`, fetchedPosts.length);
+            setPosts(fetchedPosts);
+        } catch (err: unknown) {
+            const errorMessage = handleAPIError(err);
+            console.error(`❌ Error fetching posts for category ${category}:`, err);
+            setError(errorMessage);
+            setPosts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [category]);
+
+    const refetch = useCallback(async (): Promise<void> => {
+        console.log(`🔄 Refetching posts for category: ${category}`);
+        await fetchPosts();
+    }, [fetchPosts]);
+
+    useEffect(() => {
+        if (category) {
+            console.log(`🎯 useCategoryPosts hook initialized for: ${category}`);
+            fetchPosts();
+        }
+    }, [fetchPosts, category]);
+
+    return {
+        posts,
+        loading,
+        error,
+        refetch,
+    };
+};
+
+export default {
+    useBlogPosts,
+    useBlogPost,
+    useBlogPostBySlug,
+    usePublishedPosts,
+    useFeaturedPosts,
+    useRecentPosts,
+    useBlogStatistics,
+    useBlogSearch,
+    useCategoryPosts,
+};
