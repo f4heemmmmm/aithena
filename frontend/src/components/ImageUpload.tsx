@@ -81,7 +81,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 return {
                     base64: compressed.base64,
                     filename: compressed.filename,
-                    contentType: compressed.contentType,
+                    content_type: compressed.contentType,
                     size: compressed.size,
                 };
             } catch (error) {
@@ -96,7 +96,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             return {
                 base64: base64File,
                 filename: file.name,
-                contentType: file.type,
+                content_type: file.type,
                 size: file.size,
             };
         }

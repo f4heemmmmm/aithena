@@ -66,21 +66,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         const parentList = listItem.parentNode as Element;
         const previousSibling = listItem.previousElementSibling;
         
-        if (previousSibling && previousSibling.tagName.toLowerCase() === 'li') {
-            // Get or create nested list in previous sibling
-            let nestedList = previousSibling.querySelector('ul, ol') as HTMLElement;
+        if (previousSibling && previousSibling.tagName.toLowerCase() === "li") {
+            let nestedList = previousSibling.querySelector("ul, ol") as HTMLElement;
             
             if (!nestedList) {
-                // Create new nested list with same type as parent
                 const listType = parentList.tagName.toLowerCase();
                 nestedList = document.createElement(listType) as HTMLElement;
                 if (nestedList.style) {
-                    nestedList.style.listStyleType = listType === 'ul' ? 'circle' : 'lower-alpha';
+                    nestedList.style.listStyleType = listType === "ul" ? "circle" : "lower-alpha";
                 }
                 previousSibling.appendChild(nestedList);
             }
-            
-            // Move current item to nested list
             nestedList.appendChild(listItem);
         }
     }, []);
@@ -90,11 +86,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         const grandParentListItem = parentList?.parentNode as Element;
         const greatGrandParentList = grandParentListItem?.parentNode as Element;
         
-        // Check if we're in a nested list
-        if (grandParentListItem && grandParentListItem.tagName.toLowerCase() === 'li' && 
-            greatGrandParentList && (greatGrandParentList.tagName.toLowerCase() === 'ul' || greatGrandParentList.tagName.toLowerCase() === 'ol')) {
+        if (grandParentListItem && grandParentListItem.tagName.toLowerCase() === "li" && 
+            greatGrandParentList && (greatGrandParentList.tagName.toLowerCase() === "ul" || greatGrandParentList.tagName.toLowerCase() === "ol")) {
             
-            // Move item to parent level
             const nextSibling = grandParentListItem.nextElementSibling;
             if (nextSibling) {
                 greatGrandParentList.insertBefore(listItem, nextSibling);
@@ -102,7 +96,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                 greatGrandParentList.appendChild(listItem);
             }
             
-            // Clean up empty nested list
             if (parentList.children.length === 0) {
                 parentList.remove();
             }
@@ -195,8 +188,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     }, [onChange, updateStates]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        // Handle Tab for nested lists
-        if (e.key === 'Tab') {
+        if (e.key === "Tab") {
             const selection = window.getSelection();
             if (selection && selection.rangeCount > 0) {
                 let element: Node | null = selection.getRangeAt(0).startContainer;
@@ -204,14 +196,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                     element = element.parentNode;
                 }
                 
-                // Check if we're inside a list item
                 let listItem: Element | null = null;
                 let currentElement = element;
                 
                 while (currentElement && currentElement !== editorRef.current) {
                     if (currentElement.nodeType === Node.ELEMENT_NODE) {
                         const tagName = (currentElement as Element).tagName?.toLowerCase();
-                        if (tagName === 'li') {
+                        if (tagName === "li") {
                             listItem = currentElement as Element;
                             break;
                         }
@@ -223,10 +214,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                     e.preventDefault();
                     
                     if (e.shiftKey) {
-                        // Shift+Tab: Outdent (move to parent level)
                         outdentListItem(listItem);
                     } else {
-                        // Tab: Indent (create nested list)
                         indentListItem(listItem);
                     }
                     
@@ -237,7 +226,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
             }
         }
 
-        // Existing keyboard shortcuts
         if (!e.ctrlKey && !e.metaKey) {
             return;
         }
@@ -291,29 +279,29 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
 
     const ToolbarButton = ({ command, isActive, onClick }: { command: any; isActive?: boolean; onClick: () => void; }) => (
         <button
-            type="button"
-            onMouseDown={(e) => {
+            type = "button"
+            onMouseDown = {(e) => {
                 e.preventDefault();
             }}
-            onClick={(e) => {
+            onClick = {(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
             }}
-            className={`p-2 rounded-md transition-colors ${
+            className = {`p-2 rounded-md transition-colors ${
                 isActive
                     ? "bg-blue-100 text-blue-600"
                     : "text-gray-600 hover:bg-gray-100"
             }`}
-            title={command.title}
-            disabled={disabled}
+            title = {command.title}
+            disabled = {disabled}
         >
-            <command.icon className="h-4 w-4" />
+            <command.icon className = "h-4 w-4" />
         </button>
     );
 
     const ToolbarGroup = ({ children }: { children: React.ReactNode }) => (
-        <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
+        <div className = "flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
             {children}
         </div>
     );
@@ -333,157 +321,156 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     }, [executeCommand]);
 
     return (
-        <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 flex flex-col h-96 ${
+        <div className = {`border-2 rounded-xl overflow-hidden transition-all duration-200 flex flex-col h-96 ${
             error
                 ? "border-red-300 shadow-sm shadow-red-100"
                 : "border-gray-200 hover:border-gray-300 focus-within:border-blue-400"
         }`}>
-            <div className="flex-shrink-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-3">
-                <div className="flex flex-wrap items-center gap-2">
+            <div className = "flex-shrink-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-3">
+                <div className = "flex flex-wrap items-center gap-2">
                     <ToolbarGroup>
                         {COMMANDS.history.map(cmd => (
                             <ToolbarButton
-                                key={cmd.key}
-                                command={cmd}
-                                onClick={() => executeCommand(cmd.cmd)}
+                                key = {cmd.key}
+                                command = {cmd}
+                                onClick = {() => executeCommand(cmd.cmd)}
                             />
                         ))}
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <ToolbarGroup>
-                        <div className="relative">
+                        <div className = "relative">
                             <select
-                                value={currentFormat}
-                                onChange={handleFormatChange}
-                                className="text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[100px] appearance-none cursor-pointer"
-                                disabled={disabled}
+                                value = {currentFormat}
+                                onChange = {handleFormatChange}
+                                className = "text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[100px] appearance-none cursor-pointer"
+                                disabled = {disabled}
                             >
                                 {BLOCK_FORMATS.map(fmt => (
-                                    <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
+                                    <option key = {fmt.value} value = {fmt.value}> {fmt.label} </option>
                                 ))}
                             </select>
-                            <ChevronDown className="h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                            <ChevronDown className = "h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                         </div>
                     </ToolbarGroup>
 
                     <ToolbarGroup>
-                        <div className="relative">
+                        <div className = "relative">
                             <select
-                                value={currentSize}
-                                onChange={handleSizeChange}
-                                className="text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[80px] appearance-none cursor-pointer"
-                                disabled={disabled}
+                                value = {currentSize}
+                                onChange = {handleSizeChange}
+                                className = "text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[80px] appearance-none cursor-pointer"
+                                disabled = {disabled}
                             >
                                 {FONT_SIZES.map(size => (
-                                    <option key={size.value} value={size.value}>{size.label}</option>
+                                    <option key = {size.value} value = {size.value}> {size.label} </option>
                                 ))}
                             </select>
-                            <ChevronDown className="h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                            <ChevronDown className = "h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                         </div>
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <ToolbarGroup>
                         {COMMANDS.format.map(cmd => (
                             <ToolbarButton
-                                key={cmd.key}
-                                command={cmd}
-                                isActive={activeStates.has(cmd.key)}
-                                onClick={() => executeCommand(cmd.cmd)}
+                                key = {cmd.key}
+                                command = {cmd}
+                                isActive = {activeStates.has(cmd.key)}
+                                onClick = {() => executeCommand(cmd.cmd)}
                             />
                         ))}
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <ToolbarGroup>
                         {COMMANDS.lists.map(cmd => (
                             <ToolbarButton
-                                key={cmd.key}
-                                command={cmd}
-                                isActive={activeStates.has(cmd.key)}
-                                onClick={() => executeCommand(cmd.cmd, cmd.value)}
+                                key = {cmd.key}
+                                command = {cmd}
+                                isActive = {activeStates.has(cmd.key)}
+                                onClick = {() => executeCommand(cmd.cmd, cmd.value)}
                             />
                         ))}
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <ToolbarGroup>
                         {COMMANDS.align.map(cmd => (
                             <ToolbarButton
-                                key={cmd.key}
-                                command={cmd}
-                                onClick={() => executeCommand(cmd.cmd)}
+                                key = {cmd.key}
+                                command = {cmd}
+                                onClick = {() => executeCommand(cmd.cmd)}
                             />
                         ))}
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <ToolbarGroup>
                         <ToolbarButton
-                            command={{ icon: LinkIcon, title: "Insert Link" }}
-                            onClick={insertLink}
+                            command = {{ icon: LinkIcon, title: "Insert Link" }}
+                            onClick = {insertLink}
                         />
                         <input
-                            type="color"
-                            onChange={handleColorChange}
-                            className="w-8 h-8 rounded border border-gray-300 cursor-pointer"
-                            title="Text Color"
-                            disabled={disabled}
-                            defaultValue="#000000"
+                            type = "color"
+                            onChange = {handleColorChange}
+                            className = "w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                            title = "Text Color"
+                            disabled = {disabled}
+                            defaultValue = "#000000"
                         />
                         <ToolbarButton
-                            command={{ icon: Code, title: "Inline Code" }}
-                            onClick={insertCode}
+                            command = {{ icon: Code, title: "Inline Code" }}
+                            onClick = {insertCode}
                         />
                     </ToolbarGroup>
-                    <div className="w-px h-6 bg-gray-300" />
+                    <div className = "w-px h-6 bg-gray-300" />
                     <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setIsPreview(!isPreview)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                        type = "button"
+                        onMouseDown = {(e) => e.preventDefault()}
+                        onClick = {() => setIsPreview(!isPreview)}
+                        className = {`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
                             isPreview 
                                 ? "bg-blue-500 text-white shadow-md" 
                                 : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm"
                         }`}
-                        disabled={disabled}
+                        disabled = {disabled}
                     >
-                        {isPreview ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        <span className="text-sm font-medium">
+                        {isPreview ? <Edit3 className = "h-4 w-4" /> : <Eye className = "h-4 w-4" />}
+                        <span className = "text-sm font-medium">
                             {isPreview ? "Edit" : "Preview"}
                         </span>
                     </button>
                 </div>
             </div>
-            <div className="bg-white flex-1 min-h-0">
+            <div className = "bg-white flex-1 min-h-0">
                 {isPreview ? (
-                    <div className="h-full overflow-y-auto">
+                    <div className = "h-full overflow-y-auto">
                         <div 
-                            className="prose max-w-none p-6 text-black"
-                            dangerouslySetInnerHTML={{ 
-                                __html: value || `<p class="text-gray-500 italic">${placeholder}</p>` 
+                            className = "prose max-w-none p-6 text-black"
+                            dangerouslySetInnerHTML = {{ 
+                                __html: value || `<p class="text-gray-500 italic"> ${placeholder} </p>` 
                             }}
                         />
                     </div>
                 ) : (
-                    <div className="h-full overflow-y-auto">
+                    <div className = "h-full overflow-y-auto">
                         <div
-                            ref={editorRef}
-                            contentEditable={!disabled}
-                            onInput={handleChange}
-                            onBlur={handleChange}
-                            onKeyDown={handleKeyDown}
-                            onFocus={updateStates}
-                            onMouseUp={updateStates}
-                            onKeyUp={updateStates}
-                            onPaste={handlePaste}
-                            className="p-6 min-h-full outline-none text-gray-800 leading-relaxed editor-content"
-                            suppressContentEditableWarning={true}
-                            data-placeholder={placeholder}
+                            ref = {editorRef}
+                            contentEditable = {!disabled}
+                            onInput = {handleChange}
+                            onBlur = {handleChange}
+                            onKeyDown = {handleKeyDown}
+                            onFocus = {updateStates}
+                            onMouseUp = {updateStates}
+                            onKeyUp = {updateStates}
+                            onPaste = {handlePaste}
+                            className = "p-6 min-h-full outline-none text-gray-800 leading-relaxed editor-content"
+                            suppressContentEditableWarning = {true}
+                            data-placeholder = {placeholder}
                         />
                     </div>
                 )}
             </div>
 
-            {/* CHARACTER COUNT */}
             {!isPreview && (
-                <div className="flex-shrink-0 px-6 py-2 bg-gray-50 border-t text-xs text-gray-500">
+                <div className = "flex-shrink-0 px-6 py-2 bg-gray-50 border-t text-xs text-gray-500">
                     {(editorRef.current?.textContent || "").length} characters
                 </div>
             )}
