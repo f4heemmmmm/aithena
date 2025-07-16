@@ -191,5 +191,5 @@ export default function AdministratorDashboard() {
                 </div>
             </main>
         </div>
-    )
-}
+    );
+};

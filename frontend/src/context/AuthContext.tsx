@@ -42,6 +42,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const checkAuthStatus = async () => {
         try {
+            if (typeof window === "undefined") {
+                setLoading(false);
+                return;
+            }
+
             const token = localStorage.getItem("adminToken");
             if (token) {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`, {

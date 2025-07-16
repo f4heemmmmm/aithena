@@ -307,38 +307,51 @@ export default function BlogPostPage() {
           </div>
         )}
 
-        {/* Article Content */}
-        <div 
-        className="prose max-w-none mb-12 text-black blog-content"
-        dangerouslySetInnerHTML={{ __html: post.content }}
-        />
+        {/* Article Content - Updated container */}
+        <div className="mb-12">
+          <div 
+            className="blog-content-container"
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
+        </div>
 
-        {/* Share CTA */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-12">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Enjoyed this article?</h3>
-            <p className="text-gray-600 mb-4">Share it with your network and help others discover valuable insights.</p>
-            <div className="flex justify-center space-x-3">
+        {/* New Sharing Section - Based on the attached image */}
+        <div className="border-t border-gray-200 pt-8 mb-12">
+          <div className="space-y-6">
+
+            {/* Social Media Icons */}
+            <div className="flex space-x-4 pt-4">
               <button
                 onClick={() => handleShare('facebook')}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                title="Share on Facebook"
               >
-                <Facebook className="h-4 w-4 mr-2" />
-                Facebook
+                <Facebook className="h-7 w-7" />
               </button>
               <button
                 onClick={() => handleShare('twitter')}
-                className="flex items-center px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                className="p-2 text-gray-600 hover:text-blue-400 transition-colors"
+                title="Share on Twitter"
               >
-                <Twitter className="h-4 w-4 mr-2" />
-                Twitter
+                <Twitter className="h-7 w-7" />
               </button>
               <button
                 onClick={() => handleShare('linkedin')}
-                className="flex items-center px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
+                className="p-2 text-gray-600 hover:text-blue-700 transition-colors"
+                title="Share on LinkedIn"
               >
-                <Linkedin className="h-4 w-4 mr-2" />
-                LinkedIn
+                <Linkedin className="h-7 w-7" />
+              </button>
+              <button
+                onClick={() => handleShare('copy')}
+                className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
+                title="Copy link"
+              >
+                {copied ? (
+                  <Check className="h-7 w-7 text-green-600" />
+                ) : (
+                  <Copy className="h-7 w-7" />
+                )}
               </button>
             </div>
           </div>
@@ -409,124 +422,242 @@ export default function BlogPostPage() {
           </div>
         )}
       </div>
+
+      {/* Enhanced Blog Content Styling - Updated to match RichTextEditor exactly */}
       <style jsx global>{`
-  /* Blog content styling - matches RichTextEditor preview */
-  .blog-content h1 { 
-    font-size: 2.5em !important; 
-    font-weight: 700 !important; 
-    margin: 0.8em 0 0.4em 0 !important; 
-    line-height: 1.2 !important;
-    color: #111827 !important;
-  }
-  
-  .blog-content h2 { 
-    font-size: 2em !important; 
-    font-weight: 600 !important; 
-    margin: 0.7em 0 0.35em 0 !important; 
-    line-height: 1.3 !important;
-    color: #1f2937 !important;
-  }
-  
-  .blog-content h3 { 
-    font-size: 1.5em !important; 
-    font-weight: 600 !important; 
-    margin: 0.6em 0 0.3em 0 !important; 
-    line-height: 1.4 !important;
-    color: #374151 !important;
-  }
-  
-  .blog-content h4 { 
-    font-size: 1.25em !important; 
-    font-weight: 600 !important; 
-    margin: 0.5em 0 0.25em 0 !important; 
-    line-height: 1.4 !important;
-    color: #4b5563 !important;
-  }
-  
-  .blog-content p { 
-    font-size: 1em !important;
-    margin: 0.5em 0 !important; 
-    line-height: 1.6 !important;
-    color: #374151 !important;
-  }
-  
-  .blog-content blockquote {
-    border-left: 4px solid #3b82f6 !important;
-    padding: 1em 1.5em !important;
-    margin: 1em 0 !important;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
-    border-radius: 0 0.5rem 0.5rem 0 !important;
-    font-style: italic !important;
-    color: #4b5563 !important;
-  }
-  
-  /* Base lists */
-  .blog-content ul { 
-    padding-left: 2em !important; 
-    margin: 1em 0 !important;
-    list-style-type: disc !important;
-  }
-  
-  .blog-content ol { 
-    padding-left: 2em !important; 
-    margin: 1em 0 !important;
-    list-style-type: decimal !important;
-  }
+        /* Blog content container styling - matches RichTextEditor exactly */
+        .blog-content-container {
+          max-width: none;
+          color: #000000;
+          line-height: 1.6;
+          font-size: 16px;
+        }
 
-  /* Nested lists */
-  .blog-content ul ul {
-    list-style-type: circle !important;
-    margin: 0.25em 0 !important;
-    padding-left: 1.5em !important;
-  }
+        /* Typography hierarchy - exact match with RichTextEditor */
+        .blog-content-container h1 { 
+          font-size: 2.5em !important; 
+          font-weight: 700 !important; 
+          margin: 0.8em 0 0.4em 0 !important; 
+          line-height: 1.2 !important;
+          color: #111827 !important;
+        }
+        
+        .blog-content-container h2 { 
+          font-size: 2em !important; 
+          font-weight: 600 !important; 
+          margin: 0.7em 0 0.35em 0 !important; 
+          line-height: 1.3 !important;
+          color: #1f2937 !important;
+        }
+        
+        .blog-content-container h3 { 
+          font-size: 1.5em !important; 
+          font-weight: 600 !important; 
+          margin: 0.6em 0 0.3em 0 !important; 
+          line-height: 1.4 !important;
+          color: #374151 !important;
+        }
+        
+        .blog-content-container h4 { 
+          font-size: 1.25em !important; 
+          font-weight: 600 !important; 
+          margin: 0.5em 0 0.25em 0 !important; 
+          line-height: 1.4 !important;
+          color: #4b5563 !important;
+        }
+        
+        .blog-content-container p { 
+          font-size: 1em !important;
+          margin: 0.5em 0 !important; 
+          line-height: 1.6 !important;
+          color: #374151 !important;
+        }
 
-  .blog-content ul ul ul {
-    list-style-type: square !important;
-    margin: 0.25em 0 !important;
-    padding-left: 1.5em !important;
-  }
+        /* Enhanced blockquotes */
+        .blog-content-container blockquote {
+          border-left: 4px solid #3b82f6 !important;
+          padding: 1em 1.5em !important;
+          margin: 1.5em 0 !important;
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+          border-radius: 0 0.5rem 0.5rem 0 !important;
+          font-style: italic !important;
+          color: #4b5563 !important;
+          position: relative !important;
+        }
 
-  .blog-content ol ol {
-    list-style-type: lower-alpha !important;
-    margin: 0.25em 0 !important;
-    padding-left: 1.5em !important;
-  }
+        .blog-content-container blockquote::before {
+          content: '"' !important;
+          font-size: 4em !important;
+          color: #cbd5e1 !important;
+          position: absolute !important;
+          top: -0.2em !important;
+          left: 0.3em !important;
+          font-family: Georgia, serif !important;
+          line-height: 1 !important;
+        }
 
-  .blog-content ol ol ol {
-    list-style-type: lower-roman !important;
-    margin: 0.25em 0 !important;
-    padding-left: 1.5em !important;
-  }
-  
-  .blog-content li { 
-    margin: 0.5em 0 !important; 
-    line-height: 1.6 !important;
-    display: list-item !important;
-  }
-  
-  .blog-content a { 
-    color: #3b82f6 !important; 
-    text-decoration: underline !important; 
-  }
-  
-  .blog-content strong, .blog-content b { 
-    font-weight: 700 !important; 
-  }
-  
-  .blog-content em, .blog-content i { 
-    font-style: italic !important; 
-  }
-  
-  .blog-content code {
-    background: #f3f4f6 !important;
-    color: #dc2626 !important;
-    padding: 0.2em 0.4em !important;
-    border-radius: 0.25rem !important;
-    font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
-    font-size: 0.9em !important;
-    border: 1px solid #d1d5db !important;
-  }
-`}</style>
+        .blog-content-container blockquote p {
+          margin: 0.5em 0 !important;
+          position: relative !important;
+          z-index: 1 !important;
+        }
+        
+        /* Enhanced nested lists - exact match with RichTextEditor */
+        .blog-content-container ul { 
+          padding-left: 1.5em !important; 
+          margin: 1em 0 !important;
+          list-style: none !important;
+        }
+
+        .blog-content-container ul li {
+          position: relative !important;
+          margin: 0.5em 0 !important;
+          line-height: 1.6 !important;
+          padding-left: 1.5em !important;
+          display: list-item !important;
+        }
+
+        /* Level 1: Filled circle (bullet) */
+        .blog-content-container ul li::before {
+          content: "•" !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          color: #374151 !important;
+          font-weight: bold !important;
+          font-size: 1.2em !important;
+          line-height: 1.3 !important;
+        }
+
+        /* Level 2: Filled square */
+        .blog-content-container ul ul {
+          list-style: none !important;
+          margin: 0.25em 0 !important;
+          padding-left: 1.5em !important;
+        }
+
+        .blog-content-container ul ul li::before {
+          content: "▪" !important;
+          font-size: 1em !important;
+          top: 0.1em !important;
+        }
+
+        /* Level 3: Hollow circle */
+        .blog-content-container ul ul ul {
+          list-style: none !important;
+          margin: 0.25em 0 !important;
+          padding-left: 1.5em !important;
+        }
+
+        .blog-content-container ul ul ul li::before {
+          content: "◦" !important;
+          font-size: 1.1em !important;
+          top: 0.05em !important;
+        }
+
+        /* Level 4+: Small filled circle */
+        .blog-content-container ul ul ul ul li::before {
+          content: "‣" !important;
+          font-size: 1em !important;
+          top: 0.1em !important;
+        }
+
+        /* Ordered lists */
+        .blog-content-container ol { 
+          padding-left: 1.5em !important; 
+          margin: 1em 0 !important;
+          list-style-type: decimal !important;
+        }
+
+        .blog-content-container ol li { 
+          margin: 0.5em 0 !important; 
+          line-height: 1.6 !important;
+          display: list-item !important;
+          padding-left: 0.5em !important;
+        }
+
+        /* Nested ordered lists */
+        .blog-content-container ol ol {
+          list-style-type: lower-alpha !important;
+          margin: 0.25em 0 !important;
+          padding-left: 1.5em !important;
+        }
+
+        .blog-content-container ol ol ol {
+          list-style-type: lower-roman !important;
+          margin: 0.25em 0 !important;
+          padding-left: 1.5em !important;
+        }
+        
+        /* Text formatting */
+        .blog-content-container a { 
+          color: #3b82f6 !important; 
+          text-decoration: underline !important; 
+          cursor: pointer !important;
+          transition: color 0.15s ease !important;
+        }
+
+        .blog-content-container a:hover {
+          color: #1d4ed8 !important;
+        }
+        
+        .blog-content-container strong, 
+        .blog-content-container b { 
+          font-weight: 700 !important; 
+        }
+        
+        .blog-content-container em, 
+        .blog-content-container i { 
+          font-style: italic !important; 
+        }
+
+        .blog-content-container u {
+          text-decoration: underline !important;
+        }
+
+        .blog-content-container s {
+          text-decoration: line-through !important;
+        }
+        
+        /* Inline code */
+        .blog-content-container code {
+          background: #f3f4f6 !important;
+          color: #dc2626 !important;
+          padding: 0.2em 0.4em !important;
+          border-radius: 0.25rem !important;
+          font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
+          font-size: 0.9em !important;
+          border: 1px solid #d1d5db !important;
+        }
+
+        /* Text alignment */
+        .blog-content-container [style*="text-align: left"] {
+          text-align: left !important;
+        }
+
+        .blog-content-container [style*="text-align: center"] {
+          text-align: center !important;
+        }
+
+        .blog-content-container [style*="text-align: right"] {
+          text-align: right !important;
+        }
+
+        /* Color preservation - preserve inline color styles */
+        .blog-content-container [style*="color:"] {
+          /* Inline color styles will be preserved as they have higher specificity */
+        }
+
+        /* Font size preservation - ensure font sizes are maintained */
+        .blog-content-container [style*="font-size"] {
+          /* Inline font-size styles will be preserved */
+        }
+
+        /* Ensure all inline styles are preserved */
+        .blog-content-container * {
+          /* This ensures that any inline styles set by the editor are maintained */
+        }
+      `}</style>
 
       {/* Click outside to close share menu */}
       {shareMenuOpen && (

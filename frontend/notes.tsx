@@ -1,1370 +1,838 @@
-// Complete BlogService.ts with full TypeScript compliance
-import axios, { AxiosInstance, AxiosResponse, AxiosError, isAxiosError } from "axios";
+// Install the required packages:
+// npm install @tiptap/react@^2.8.0 @tiptap/pm@^2.8.0 @tiptap/starter-kit@^2.8.0 @tiptap/extension-text-style@^2.8.0 @tiptap/extension-color@^2.8.0 @tiptap/extension-text-align@^2.8.0 @tiptap/extension-link@^2.8.0 @tiptap/extension-underline@^2.8.0 @tiptap/extension-code@^2.8.0 @tiptap/extension-list-item@^2.8.0 @tiptap/extension-character-count@^2.8.0
 
-// ===========================================
-// TYPES AND INTERFACES
-// ===========================================
+"use client";
 
-export enum BlogCategory {
-    NEWSROOM = "newsroom",
-    THOUGHT_PIECES = "thought-pieces", 
-    ACHIEVEMENTS = "achievements",
-    AWARDS_RECOGNITION = "awards-recognition"
+import React, { JSX, useCallback, useEffect, useState } from "react";
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextStyle from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import TextAlign from "@tiptap/extension-text-align";
+import Link from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
+import Code from "@tiptap/extension-code";
+import ListItem from "@tiptap/extension-list-item";
+import CharacterCount from "@tiptap/extension-character-count";
+import { EditorView } from '@tiptap/pm/view';
+import { 
+  Bold, 
+  Italic, 
+  Underline as UnderlineIcon, 
+  List, 
+  ListOrdered, 
+  Quote, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight,
+  Link as LinkIcon,
+  Code as CodeIcon,
+  Undo,
+  Redo,
+  Eye,
+  Edit3,
+  ChevronDown,
+  Type,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  RotateCcw
+} from "lucide-react";
+
+interface TiptapRichTextEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  error?: string;
+  placeholder?: string;
+  className?: string;
+  minHeight?: number;
 }
 
-export interface BlogAuthor {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
+interface BlockFormat {
+  value: string;
+  label: string;
+  level?: number | null;
 }
 
-// Raw blog post from API (categories might be string or array due to database storage)
-export interface BlogPostRaw {
-    id: string;
-    title: string;
-    slug: string;
-    content: string;
-    excerpt?: string;
-    featured_image?: string;
-    uploaded_image?: string;
-    uploaded_image_filename?: string;
-    uploaded_image_content_type?: string;
-    is_published: boolean;
-    is_featured: boolean;
-    view_count: number;
-    categories: BlogCategory[] | string; // Handle both types from database
-    author: BlogAuthor;
-    created_at: string;
-    updated_at: string;
-    published_at?: string;
+interface DropdownProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  currentLabel: string;
+  options: BlockFormat[];
+  onSelect: (format: BlockFormat) => void;
+  disabled?: boolean;
 }
 
-// Processed blog post (categories always normalized to array)
-export interface BlogPost {
-    id: string;
-    title: string;
-    slug: string;
-    content: string;
-    excerpt?: string;
-    featured_image?: string;
-    uploaded_image?: string;
-    uploaded_image_filename?: string;
-    uploaded_image_content_type?: string;
-    is_published: boolean;
-    is_featured: boolean;
-    view_count: number;
-    categories: BlogCategory[]; // Always normalized to array
-    author: BlogAuthor;
-    created_at: string;
-    updated_at: string;
-    published_at?: string;
-}
+const BLOCK_FORMATS: BlockFormat[] = [
+  { value: "paragraph", label: "Normal", level: null },
+  { value: "heading", label: "Heading 1", level: 1 },
+  { value: "heading", label: "Heading 2", level: 2 },
+  { value: "heading", label: "Heading 3", level: 3 },
+  { value: "heading", label: "Heading 4", level: 4 },
+  { value: "blockquote", label: "Quote", level: null },
+];
 
-export interface BlogPostFormData {
-    title: string;
-    content: string;
-    excerpt?: string;
-    featured_image?: string;
-    uploaded_image?: string;
-    uploaded_image_filename?: string;
-    uploaded_image_content_type?: string;
-    is_published: boolean;
-    is_featured: boolean;
-    categories: BlogCategory[];
-}
+const FormatDropdown: React.FC<DropdownProps> = ({
+  isOpen,
+  onToggle,
+  currentLabel,
+  options,
+  onSelect,
+  disabled
+}) => {
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-export interface BlogResponse {
-    status_code: number;
-    message: string;
-    data: BlogPostRaw[]; // Raw posts from API
-    count?: number;
-}
-
-export interface BlogPostResponse {
-    status_code: number;
-    message: string;
-    data: BlogPostRaw; // Raw post from API
-}
-
-export interface BlogStatistics {
-    total: number;
-    published: number;
-    drafts: number;
-    featured: number;
-    recentlyPublished: number;
-    totalViews: number;
-    byCategory: Record<BlogCategory, number>;
-}
-
-export interface ApiError {
-    message: string;
-    statusCode: number;
-    error?: string;
-    details?: unknown;
-}
-
-export interface BlogPostQuery {
-    page?: number;
-    limit?: number;
-    search?: string;
-    isPublished?: boolean;
-    isFeatured?: boolean;
-    categories?: BlogCategory[];
-}
-
-export interface ImageUploadError {
-    type: 'file_too_large' | 'invalid_type' | 'upload_failed' | 'processing_failed';
-    message: string;
-}
-
-export interface UploadedImageData {
-    base64: string;
-    filename: string;
-    contentType: string;
-    size: number;
-}
-
-interface ApiErrorResponse {
-    message?: string;
-    error?: string;
-    statusCode?: number;
-    details?: unknown;
-}
-
-interface LoggingContext {
-    [key: string]: unknown;
-}
-
-// ===========================================
-// UTILITY FUNCTIONS
-// ===========================================
-
-// Type guards
-function isStringCategories(categories: BlogCategory[] | string | null | undefined): categories is string {
-    return typeof categories === 'string';
-}
-
-function isArrayCategories(categories: BlogCategory[] | string | null | undefined): categories is BlogCategory[] {
-    return Array.isArray(categories);
-}
-
-// Utility function to normalize categories from any format to BlogCategory[]
-function normalizeCategories(categories: BlogCategory[] | string | null | undefined): BlogCategory[] {
-    if (!categories) {
-        return [BlogCategory.NEWSROOM];
-    }
-    
-    if (isStringCategories(categories)) {
-        // Handle empty or malformed strings
-        if (categories === '' || categories === '{}' || categories === 'null' || categories === 'undefined') {
-            return [BlogCategory.NEWSROOM];
-        }
-        
-        // Parse comma-separated string
-        const parsed = categories
-            .split(',')
-            .map(cat => cat.trim() as BlogCategory)
-            .filter(cat => cat && Object.values(BlogCategory).includes(cat));
-            
-        return parsed.length > 0 ? parsed : [BlogCategory.NEWSROOM];
-    }
-    
-    if (isArrayCategories(categories)) {
-        // Filter to only valid categories
-        const filtered = categories.filter(cat => cat && Object.values(BlogCategory).includes(cat));
-        return filtered.length > 0 ? filtered : [BlogCategory.NEWSROOM];
-    }
-    
-    // Fallback for any other type
-    return [BlogCategory.NEWSROOM];
-}
-
-// Function to convert raw post to processed post
-function processBlogPost(rawPost: BlogPostRaw): BlogPost {
-    return {
-        ...rawPost,
-        categories: normalizeCategories(rawPost.categories)
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        if (isOpen) onToggle();
+      }
     };
-}
 
-// Function to process array of raw posts
-function processBlogPosts(rawPosts: BlogPostRaw[]): BlogPost[] {
-    return rawPosts.map(rawPost => processBlogPost(rawPost));
-}
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onToggle]);
 
-// Enhanced error logging utility with strict TypeScript compliance
-const logErrorDetails = (context: string, error: unknown): void => {
-    console.group(`🔴 ${context}`);
-    
-    try {
-        if (isAxiosError(error)) {
-            const axiosErrorDetails: LoggingContext = {
-                message: error.message || 'No message',
-                code: error.code || 'No code',
-                status: error.response?.status || 'No status',
-                statusText: error.response?.statusText || 'No status text',
-                url: error.config?.url || 'No URL',
-                method: error.config?.method || 'No method',
-                baseURL: error.config?.baseURL || 'No base URL',
-                responseData: error.response?.data || 'No response data',
-                requestData: error.config?.data || 'No request data',
-                headers: error.config?.headers || 'No headers'
-            };
-            
-            console.error("Axios Error Details:", axiosErrorDetails);
-            console.error("Raw Axios Error:", error);
-            
-        } else if (error instanceof Error) {
-            const standardErrorDetails: LoggingContext = {
-                name: error.name || 'No name',
-                message: error.message || 'No message',
-                stack: error.stack || 'No stack trace'
-            };
-            
-            console.error("Standard Error:", standardErrorDetails);
-            console.error("Raw Error Object:", error);
-            
-        } else if (error && typeof error === 'object' && error !== null) {
-            const objectErrorDetails: LoggingContext = {
-                type: typeof error,
-                constructor: (error as Record<string, unknown>).constructor?.name || 'Unknown',
-                keys: Object.keys(error as Record<string, unknown>),
-                stringified: JSON.stringify(error),
-                valueOf: String(error)
-            };
-            
-            console.error("Object Error:", objectErrorDetails);
-            console.error("Raw Error Object:", error);
-            
-        } else {
-            const primitiveErrorDetails: LoggingContext = {
-                type: typeof error,
-                value: error,
-                stringified: String(error)
-            };
-            
-            console.error("Primitive Error:", primitiveErrorDetails);
-        }
-    } catch (loggingError: unknown) {
-        console.error("Error while logging error:", loggingError);
-        console.error("Original error (fallback):", error);
-    }
-    
-    console.groupEnd();
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onMouseDown={(e) => {
+          e.preventDefault(); // Prevent focus loss from editor
+        }}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
+        disabled={disabled}
+        className="flex items-center gap-2 px-3 py-2 text-sm border-0 bg-transparent rounded focus:outline-none min-w-[120px] cursor-pointer hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Type className="h-4 w-4" />
+        <span>{currentLabel}</span>
+        <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+          {options.map((format) => (
+            <button
+              key={`${format.value}-${format.level || 'none'}`}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent focus loss
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(format);
+                onToggle();
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors border-none bg-transparent cursor-pointer"
+            >
+              {format.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
-// ===========================================
-// BLOG SERVICE CLASS
-// ===========================================
+export const TiptapRichTextEditor: React.FC<TiptapRichTextEditorProps> = ({
+  value,
+  onChange,
+  disabled = false,
+  error,
+  placeholder = "Start writing...",
+  className = "",
+  minHeight = 200
+}) => {
+  const [isPreview, setIsPreview] = useState(false);
+  const [currentColor, setCurrentColor] = useState("#000000");
+  const [isFormatDropdownOpen, setIsFormatDropdownOpen] = useState(false);
 
-class BlogService {
-    private api: AxiosInstance;
-    private publicApi: AxiosInstance;
-    private baseURL: string;
+  const editor: Editor | null = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3, 4],
+        },
+        listItem: false, // We'll use our custom ListItem
+        bulletList: {
+          HTMLAttributes: {
+            class: 'bullet-list',
+          },
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'ordered-list',
+          },
+        },
+      }),
+      ListItem.configure({
+        HTMLAttributes: {
+          class: 'list-item',
+        },
+      }),
+      TextStyle,
+      Color,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 underline cursor-pointer hover:text-blue-800',
+        },
+      }),
+      Underline,
+      Code.configure({
+        HTMLAttributes: {
+          class: 'bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono border border-gray-200',
+        },
+      }),
+      CharacterCount.configure({
+        limit: null, // No character limit
+      }),
+    ],
+    content: value,
+    editable: !disabled && !isPreview,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      onChange(html);
+    },
+    editorProps: {
+      attributes: {
+        class: `prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-full p-6 text-gray-800 leading-relaxed`,
+        'data-placeholder': placeholder,
+        style: `min-height: ${minHeight}px`,
+      },
+      handleKeyDown: (view: EditorView, event: globalThis.KeyboardEvent): boolean => {
+        // Handle Tab key for nested lists
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          
+          if (event.shiftKey) {
+            // Shift+Tab: Outdent (lift list item)
+            if (editor?.commands.liftListItem('listItem')) {
+              return true;
+            }
+          } else {
+            // Tab: Indent (sink list item)  
+            if (editor?.commands.sinkListItem('listItem')) {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+    },
+  });
 
-    constructor() {
-        this.baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        
-        console.log("🚀 Initializing BlogService with baseURL:", this.baseURL);
-        
-        // Authenticated API instance
-        this.api = axios.create({
-            baseURL: this.baseURL,
-            timeout: 60000,
-            headers: {
-                "Content-Type": "application/json",
-            },
-            maxContentLength: 10 * 1024 * 1024, // 10MB
-            maxBodyLength: 10 * 1024 * 1024, // 10MB
-        });
-
-        // Public API instance without authentication
-        this.publicApi = axios.create({
-            baseURL: this.baseURL,
-            timeout: 60000,
-            headers: {
-                "Content-Type": "application/json",
-            },
-            maxContentLength: 10 * 1024 * 1024, // 10MB
-            maxBodyLength: 10 * 1024 * 1024, // 10MB
-        });
-
-        this.setupInterceptors();
+  // Sync external value changes
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
     }
+  }, [value, editor]);
 
-    private setupInterceptors(): void {
-        // Request interceptor with enhanced logging
-        this.api.interceptors.request.use(
-            (config) => {
-                const token = this.getStoredToken();
-                if (token && config.headers) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-                
-                const requestInfo: LoggingContext = {
-                    method: config.method?.toUpperCase(),
-                    url: config.url,
-                    baseURL: config.baseURL,
-                    fullURL: `${config.baseURL || ''}${config.url || ''}`,
-                    hasToken: !!token,
-                    hasData: !!config.data,
-                    dataSize: config.data ? JSON.stringify(config.data).length : 0
-                };
-                
-                console.log("📤 API Request:", requestInfo);
-                
-                return config;
-            },
-            (error: unknown) => {
-                logErrorDetails("Request Interceptor Error", error);
-                return Promise.reject(error);
-            }
-        );
+  // Update current color when selection changes
+  useEffect(() => {
+    if (!editor) return;
 
-        // Response interceptor with enhanced error handling
-        const handleResponse = (response: AxiosResponse): AxiosResponse => {
-            const responseInfo: LoggingContext = {
-                status: response.status,
-                statusText: response.statusText,
-                url: response.config.url,
-                dataSize: response.data ? JSON.stringify(response.data).length : 0
-            };
-            
-            console.log("📥 API Response:", responseInfo);
-            return response;
-        };
-
-        const handleError = (error: unknown): Promise<never> => {
-            console.log("🚨 Interceptor caught error:", typeof error, error);
-            
-            // Enhanced error logging
-            logErrorDetails("API Response Error", error);
-            
-            // Only log non-404 errors for endpoint discovery
-            if (isAxiosError(error) && error.response?.status !== 404) {
-                const errorDetails: LoggingContext = {
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    baseURL: error.config?.baseURL,
-                    fullURL: `${error.config?.baseURL || ''}${error.config?.url || ''}`,
-                    message: error.message,
-                    code: error.code,
-                    data: error.response?.data,
-                    timeout: error.config?.timeout
-                };
-                
-                console.error("🚨 Non-404 API Error Details:", errorDetails);
-            }
-
-            if (isAxiosError(error) && error.response?.status === 401) {
-                this.handleUnauthorized();
-            }
-            
-            // Return the formatted error but preserve the original
-            const formattedError = this.formatError(error);
-            console.log("🔄 Formatted error:", formattedError);
-            
-            return Promise.reject(formattedError);
-        };
-
-        this.api.interceptors.response.use(handleResponse, handleError);
-        this.publicApi.interceptors.response.use(handleResponse, handleError);
-    }
-
-    private getStoredToken(): string | null {
-        if (typeof window !== "undefined") {
-            const token = localStorage.getItem("adminToken");
-            return token;
-        }
-        return null;
-    }
-
-    private handleUnauthorized(): void {
-        console.warn("🚫 Unauthorized access - clearing auth data");
-        if (typeof window !== "undefined") {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminData");
-            window.location.href = "/login";
-        }
-    }
-
-    private formatError(error: unknown): ApiError {
-        console.log("🔧 Formatting error:", typeof error, error);
-        
-        if (isAxiosError(error)) {
-            if (error.response?.data) {
-                const data = error.response.data as ApiErrorResponse;
-                return {
-                    message: data.message || error.message || "An error occurred",
-                    statusCode: error.response.status,
-                    error: data.error,
-                    details: data.details || data
-                };
-            }
-            
-            if (error.code === "ECONNABORTED") {
-                return {
-                    message: "Request timeout - please check if the backend server is running or try a smaller image",
-                    statusCode: 408,
-                };
-            }
-
-            if (error.code === "ECONNREFUSED") {
-                return {
-                    message: "Connection refused - backend server may not be running",
-                    statusCode: 503,
-                };
-            }
-
-            if (error.message?.includes("Network Error")) {
-                return {
-                    message: "Network error - please check your connection and ensure the backend server is running",
-                    statusCode: 0,
-                };
-            }
-
-            return {
-                message: error.message || "Network error",
-                statusCode: error.response?.status || 500,
-            };
-        }
-        
-        if (error instanceof Error) {
-            return {
-                message: error.message || "An unexpected error occurred",
-                statusCode: 500,
-                details: { name: error.name, stack: error.stack }
-            };
-        }
-        
-        return {
-            message: "An unknown error occurred",
-            statusCode: 500,
-            details: { errorType: typeof error, error: String(error) }
-        };
-    }
-
-    /**
-     * Attempts multiple API endpoints without logging expected 404 failures
-     */
-    private async tryApiEndpoints<T>(
-        endpoints: string[], 
-        method: 'GET' | 'POST' = 'GET', 
-        data?: unknown
-    ): Promise<T> {
-        let lastError: unknown = null;
-        const attemptedEndpoints: string[] = [];
-
-        for (const endpoint of endpoints) {
-            try {
-                let response: AxiosResponse<T>;
-                
-                if (method === 'POST') {
-                    response = await this.publicApi.post(endpoint, data);
-                } else {
-                    response = await this.publicApi.get(endpoint);
-                }
-                
-                return response.data;
-            } catch (error: unknown) {
-                lastError = error;
-                attemptedEndpoints.push(endpoint);
-                
-                // Only log non-404 errors
-                if (isAxiosError(error) && error.response?.status !== 404) {
-                    console.warn(`Unexpected error from ${endpoint}:`, error);
-                }
-            }
-        }
-
-        console.warn(`All API endpoints failed. Attempted: ${attemptedEndpoints.join(", ")}`);
-        
-        if (lastError) {
-            throw lastError; // Preserve the original error
-        }
-        
-        throw new Error("All API endpoints are unavailable");
-    }
-
-    
-
-    // Image utility methods
-    validateImageData(imageData: UploadedImageData): ImageUploadError | null {
-        const imageInfo: LoggingContext = {
-            size: imageData.size,
-            contentType: imageData.contentType,
-            filename: imageData.filename
-        };
-        
-        console.log("🖼️ Validating image data:", imageInfo);
-
-        if (!imageData.base64.startsWith('data:image/')) {
-            return {
-                type: 'invalid_type',
-                message: 'Invalid image data format'
-            };
-        }
-
-        const base64Data = imageData.base64.split(',')[1] || imageData.base64;
-        const sizeInBytes = base64Data.length;
-        const maxSize = 2 * 1024 * 1024; // 2MB for base64 string
-        
-        if (sizeInBytes > maxSize) {
-            return {
-                type: 'file_too_large',
-                message: `Compressed image is still too large (${Math.round(sizeInBytes / 1024)}KB). Maximum allowed: ${Math.round(maxSize / 1024)}KB`
-            };
-        }
-
-        const validTypes: string[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(imageData.contentType)) {
-            return {
-                type: 'invalid_type',
-                message: 'Invalid image type. Supported: JPEG, PNG, GIF, WebP'
-            };
-        }
-
-        return null;
-    }
-
-    // ===========================================
-    // PUBLIC METHODS (No authentication required)
-    // ===========================================
-
-    async getPublishedPosts(): Promise<BlogPost[]> {
-        try {
-            console.log("🔍 Fetching published posts...");
-            const endpoints = ["/api/blog/published", "/blog/published"];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            
-            const rawPosts = response.data || [];
-            console.log("📋 Raw published posts fetched:", rawPosts.length);
-            
-            const processedPosts = processBlogPosts(rawPosts);
-            console.log("✅ Processed published posts:", processedPosts.length);
-            
-            return processedPosts;
-        } catch (error: unknown) {
-            console.error("❌ Error fetching published posts:", error);
-            return [];
-        }
-    }
-
-    
-    async getFeaturedPosts(limit?: number): Promise<BlogPost[]> {
-        try {
-            console.log("🔍 Fetching featured posts...");
-            const endpoints = [
-                limit ? `/api/blog/featured?limit=${limit}` : "/api/blog/featured",
-                limit ? `/blog/featured?limit=${limit}` : "/blog/featured"
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            
-            const rawPosts = response.data || [];
-            console.log("📋 Raw featured posts fetched:", rawPosts.length);
-            
-            const processedPosts = processBlogPosts(rawPosts);
-            console.log("✅ Processed featured posts:", processedPosts.length);
-            
-            return processedPosts;
-        } catch (error: unknown) {
-            console.error("❌ Error fetching featured posts:", error);
-            return [];
-        }
-    }
-
-    async getRecentPosts(limit?: number): Promise<BlogPost[]> {
-        try {
-            console.log("🔍 Fetching recent posts...");
-            const endpoints = [
-                limit ? `/api/blog/recent?limit=${limit}` : "/api/blog/recent",
-                limit ? `/blog/recent?limit=${limit}` : "/blog/recent"
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            
-            const rawPosts = response.data || [];
-            console.log("📋 Raw recent posts fetched:", rawPosts.length);
-            
-            const processedPosts = processBlogPosts(rawPosts);
-            console.log("✅ Processed recent posts:", processedPosts.length);
-            
-            return processedPosts;
-        } catch (error: unknown) {
-            console.error("❌ Error fetching recent posts:", error);
-            return [];
-        }
-    }
-
-    async getPostBySlug(slug: string): Promise<BlogPost | null> {
-        try {
-            console.log(`🔍 Fetching post by slug: ${slug}`);
-            const endpoints = [`/api/blog/slug/${slug}`, `/blog/slug/${slug}`];
-            const response = await this.tryApiEndpoints<BlogPostResponse>(endpoints);
-            
-            console.log(`📋 Raw post fetched by slug: ${slug}`);
-            const processedPost = processBlogPost(response.data);
-            console.log(`✅ Processed post by slug: ${slug}`);
-            
-            return processedPost;
-        } catch (error: unknown) {
-            const apiError = error as ApiError;
-            if (apiError.statusCode === 404) {
-                console.log(`ℹ️ Post not found with slug: ${slug}`);
-                return null;
-            }
-            console.error(`❌ Error fetching post by slug ${slug}:`, error);
-            return null;
-        }
-    }
-
-    async incrementViewCount(slug: string): Promise<number> {
-        try {
-            console.log(`🔍 Incrementing view count for: ${slug}`);
-            const endpoints = [
-                `/api/blog/slug/${slug}/view`,
-                `/blog/slug/${slug}/view`
-            ];
-            
-            for (const endpoint of endpoints) {
-                try {
-                    const response: AxiosResponse<{ view_count: number }> = await this.publicApi.post(endpoint);
-                    console.log(`✅ View count incremented for ${slug}:`, response.data.view_count);
-                    return response.data.view_count || 0;
-                } catch (error: unknown) {
-                    if (isAxiosError(error) && error.response?.status !== 404) {
-                        console.warn(`Unexpected error from ${endpoint}:`, error);
-                    }
-                }
-            }
-            
-            console.warn("All view count increment endpoints failed");
-            return 0;
-        } catch (error: unknown) {
-            console.error("❌ Error incrementing view count:", error);
-            return 0;
-        }
-    }
-
-    async searchPosts(searchTerm: string, onlyPublished: boolean = true): Promise<BlogPost[]> {
-        try {
-            console.log(`🔍 Searching posts: "${searchTerm}"`);
-            const params = new URLSearchParams();
-            params.append("q", searchTerm);
-            if (onlyPublished !== undefined) {
-                params.append("published", onlyPublished.toString());
-            }
-
-            const endpoints = [
-                `/api/blog/search?${params.toString()}`,
-                `/blog/search?${params.toString()}`
-            ];
-            const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-            
-            const rawPosts = response.data || [];
-            console.log(`📋 Raw search results for "${searchTerm}":`, rawPosts.length);
-            
-            const processedPosts = processBlogPosts(rawPosts);
-            console.log(`✅ Processed search results for "${searchTerm}":`, processedPosts.length);
-            
-            return processedPosts;
-        } catch (error: unknown) {
-            console.error(`❌ Error searching posts for "${searchTerm}":`, error);
-            return [];
-        }
-    }
-
-    // ===========================================
-    // ADMIN METHODS (Require authentication)
-    // ===========================================
-
-    // Updated sections of blogService.ts for better category handling
-
-// Add this enhanced logging to the createPost method in blogService.ts
-async createPost(data: BlogPostFormData): Promise<BlogPost> {
-    console.group("🚀 Creating Blog Post");
-    
-    // Validate the form data first
-    const validatedData = this.validateFormData(data);
-    
-    try {
-        // Enhanced category validation and logging
-        console.log("📋 Category validation:", {
-            originalCategories: data.categories,
-            validatedCategories: validatedData.categories,
-            categoriesType: typeof validatedData.categories,
-            categoriesArray: Array.isArray(validatedData.categories),
-            categoriesLength: validatedData.categories?.length
-        });
-
-        // Validate uploaded image if present
-        if (validatedData.uploaded_image && validatedData.uploaded_image_filename && validatedData.uploaded_image_content_type) {
-            console.log("🖼️ Validating uploaded image...");
-            const imageData: UploadedImageData = {
-                base64: validatedData.uploaded_image,
-                filename: validatedData.uploaded_image_filename,
-                contentType: validatedData.uploaded_image_content_type,
-                size: validatedData.uploaded_image.length
-            };
-            
-            const validationError = this.validateImageData(imageData);
-            if (validationError) {
-                throw new Error(`Image validation failed: ${validationError.message}`);
-            }
-            console.log("✅ Image validation passed");
-        }
-
-        console.log("📤 Sending POST request to /api/blog");
-        console.log("📦 Request payload:", {
-            title: validatedData.title,
-            categories: validatedData.categories,
-            payloadSize: JSON.stringify(validatedData).length + " bytes"
-        });
-        
-        const response: AxiosResponse<BlogPostResponse> = await this.api.post("/api/blog", validatedData);
-        
-        const processedPost = processBlogPost(response.data.data);
-        
-        const successInfo: LoggingContext = {
-            id: processedPost.id,
-            title: processedPost.title,
-            categories: processedPost.categories,
-            finalCategoriesCount: processedPost.categories.length
-        };
-        
-        console.log("✅ Blog post created successfully:", successInfo);
-        
-        console.groupEnd();
-        return processedPost;
-        
-    } catch (error: unknown) {
-        console.groupEnd();
-        
-        // Log the raw error before processing
-        console.error("🚨 Raw createPost error:", error);
-        logErrorDetails("Blog Post Creation Failed", error);
-        
-        if (isAxiosError(error)) {
-            if (error.response?.status === 413) {
-                throw new Error("Image file is too large. Please compress the image and try again.");
-            }
-            
-            if (error.response?.status === 400) {
-                const errorData = error.response.data as ApiErrorResponse;
-                if (errorData?.message && errorData.message.includes('too large')) {
-                    throw new Error("Request payload too large. Please use a smaller image.");
-                }
-                throw new Error(errorData?.message || "Invalid request data. Please check your form inputs.");
-            }
-
-            if (error.response?.status === 401) {
-                throw new Error("Authentication failed. Please log in again.");
-            }
-
-            if (error.response?.status === 403) {
-                throw new Error("You don't have permission to create blog posts.");
-            }
-
-            if (error.response?.status === 500) {
-                throw new Error("Server error. Please try again later or contact support.");
-            }
-            
-            // Try alternative endpoint if primary fails with 404
-            if (error.response?.status === 404) {
-                console.log("🔄 Trying alternative endpoint /blog");
-                try {
-                    const response: AxiosResponse<BlogPostResponse> = await this.api.post("/blog", validatedData);
-                    console.log("✅ Blog post created via alternative endpoint");
-                    return processBlogPost(response.data.data);
-                } catch (altError: unknown) {
-                    logErrorDetails("Alternative Endpoint Failed", altError);
-                    throw new Error("Blog creation endpoint not found. Please check your API configuration.");
-                }
-            }
-
-            if (error.code === "ECONNREFUSED") {
-                throw new Error("Cannot connect to the server. Please ensure the backend is running and accessible.");
-            }
-
-            if (error.code === "ECONNABORTED") {
-                throw new Error("Request timed out. Please try with a smaller image or check your connection.");
-            }
-
-            throw new Error(error.message || "Network error occurred while creating the blog post.");
-        }
-        
-        if (error instanceof Error) {
-            throw error;
-        }
-        
-        throw new Error("An unexpected error occurred while creating the blog post.");
-    }
-}
-
-// Enhanced validateFormData method with better category handling
-private validateFormData(data: BlogPostFormData): BlogPostFormData {
-    const validationInfo: LoggingContext = {
-        title: data.title?.length || 0,
-        content: data.content?.length || 0,
-        categories: data.categories,
-        categoriesType: typeof data.categories,
-        categoriesArray: Array.isArray(data.categories),
-        hasUploadedImage: !!data.uploaded_image,
-        hasExcerpt: !!data.excerpt,
-        hasFeaturedImage: !!data.featured_image
+    const updateColor = (): void => {
+      const color: string | undefined = editor.getAttributes('textStyle').color;
+      if (color) {
+        setCurrentColor(color);
+      } else {
+        setCurrentColor("#000000");
+      }
     };
-    
-    console.log("🔍 Validating form data:", validationInfo);
 
-    // Enhanced category validation and normalization
-    let validCategories = data.categories;
+    editor.on('selectionUpdate', updateColor);
+    editor.on('transaction', updateColor);
+
+    return () => {
+      editor.off('selectionUpdate', updateColor);
+      editor.off('transaction', updateColor);
+    };
+  }, [editor]);
+
+  const setLink = useCallback((): void => {
+    if (!editor) return;
+
+    const previousUrl: string = editor.getAttributes('link').href || '';
     
-    // Handle various input formats
-    if (!validCategories) {
-        console.warn("⚠️ No categories provided, using default NEWSROOM");
-        validCategories = [BlogCategory.NEWSROOM];
-    } else if (!Array.isArray(validCategories)) {
-        console.warn("⚠️ Categories is not an array, converting to array:", validCategories);
-        // Handle case where categories might be sent as a single value or string
-        if (typeof validCategories === 'string') {
-            validCategories = [validCategories as BlogCategory];
-        } else {
-            validCategories = [BlogCategory.NEWSROOM];
-        }
-    } else if (validCategories.length === 0) {
-        console.warn("⚠️ Empty categories array, using default NEWSROOM");
-        validCategories = [BlogCategory.NEWSROOM];
+    // If there's already a link, ask if user wants to edit or remove it
+    if (previousUrl) {
+      const action = window.confirm('Link already exists. Click OK to edit, Cancel to remove.');
+      if (!action) {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+        return;
+      }
     }
 
-    // Filter out invalid categories and remove duplicates
-    const validCategoryValues = Object.values(BlogCategory);
-    const filteredCategories = [...new Set(validCategories)].filter((cat): cat is BlogCategory => 
-        validCategoryValues.includes(cat)
+    const url: string | null = window.prompt('Enter URL:', previousUrl);
+
+    if (url === null) return;
+
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+
+    // Add https:// if no protocol is specified
+    const finalUrl: string = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') ? url : `https://${url}`;
+    editor.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run();
+  }, [editor]);
+
+  const toggleCode = useCallback((): void => {
+    if (!editor) return;
+    editor.chain().focus().toggleCode().run();
+  }, [editor]);
+
+  const setFormat = useCallback((format: BlockFormat): void => {
+    if (!editor) return;
+
+    editor.chain().focus();
+
+    if (format.value === 'paragraph') {
+      editor.chain().focus().setParagraph().run();
+    } else if (format.value === 'heading' && format.level) {
+      editor.chain().focus().setHeading({ level: format.level as 1 | 2 | 3 | 4 }).run();
+    } else if (format.value === 'blockquote') {
+      editor.chain().focus().setBlockquote().run();
+    }
+  }, [editor]);
+
+  const getCurrentFormat = useCallback((): BlockFormat => {
+    if (!editor) return { value: 'paragraph', label: 'Normal' };
+
+    if (editor.isActive('heading', { level: 1 })) return { value: 'heading', label: 'Heading 1', level: 1 };
+    if (editor.isActive('heading', { level: 2 })) return { value: 'heading', label: 'Heading 2', level: 2 };
+    if (editor.isActive('heading', { level: 3 })) return { value: 'heading', label: 'Heading 3', level: 3 };
+    if (editor.isActive('heading', { level: 4 })) return { value: 'heading', label: 'Heading 4', level: 4 };
+    if (editor.isActive('blockquote')) return { value: 'blockquote', label: 'Quote' };
+    
+    return { value: 'paragraph', label: 'Normal' };
+  }, [editor]);
+
+  const clearFormatting = useCallback((): void => {
+    if (!editor) return;
+    editor.chain().focus().clearNodes().unsetAllMarks().run();
+  }, [editor]);
+
+  if (!editor) {
+    return (
+      <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg">
+        <div className="text-gray-500">Loading editor...</div>
+      </div>
     );
-    
-    if (filteredCategories.length === 0) {
-        console.warn("⚠️ All categories were invalid, using default NEWSROOM");
-        filteredCategories.push(BlogCategory.NEWSROOM);
-    }
+  }
 
-    const validatedData: BlogPostFormData = {
-        ...data,
-        title: data.title?.trim() || "",
-        content: data.content?.trim() || "",
-        excerpt: data.excerpt?.trim() || undefined,
-        categories: filteredCategories
-    };
+  const ToolbarButton = ({ 
+    onClick, 
+    isActive = false, 
+    disabled: buttonDisabled = false, 
+    title, 
+    children,
+    className: buttonClassName = ""
+  }: {
+    onClick: () => void;
+    isActive?: boolean;
+    disabled?: boolean;
+    title: string;
+    children: React.ReactNode;
+    className?: string;
+  }): JSX.Element => (
+    <button
+      type="button"
+      onMouseDown={(e) => {
+        e.preventDefault(); // Prevent focus loss
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled || buttonDisabled}
+      title={title}
+      className={`p-2 rounded-md transition-all duration-150 ${
+        isActive
+          ? "bg-blue-100 text-blue-600 shadow-sm"
+          : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+      } ${disabled || buttonDisabled ? "opacity-50 cursor-not-allowed" : "active:scale-95"} ${buttonClassName}`}
+    >
+      {children}
+    </button>
+  );
 
-    const validatedInfo: LoggingContext = {
-        title: validatedData.title.length,
-        content: validatedData.content.length,
-        categories: validatedData.categories,
-        categoriesCount: validatedData.categories.length,
-        hasExcerpt: !!validatedData.excerpt
-    };
-    
-    console.log("✅ Validated data:", validatedInfo);
+  const ToolbarGroup = ({ children }: { children: React.ReactNode }): JSX.Element => (
+    <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-100">
+      {children}
+    </div>
+  );
 
-    return validatedData;
-}
+  const currentFormat: BlockFormat = getCurrentFormat();
+  const characterCount: number = editor?.storage.characterCount?.characters() || 0;
+  const wordCount: number = editor?.storage.characterCount?.words() || 0;
 
-// Enhanced getPostsByCategory method with better debugging
-async getPostsByCategory(category: BlogCategory): Promise<BlogPost[]> {
-    try {
-        console.log(`🔍 Frontend: Fetching posts for category: ${category}`);
-        const endpoints = [
-            `/api/blog/category/${category}`,
-            `/blog/category/${category}`
-        ];
-        const response = await this.tryApiEndpoints<BlogResponse>(endpoints);
-        
-        const rawPosts = response.data || [];
-        console.log(`📋 Frontend: Raw category posts fetched for ${category}:`, rawPosts.length);
-        
-        // Process raw posts to normalize categories
-        const processedPosts = processBlogPosts(rawPosts);
-        
-        // Additional client-side filtering to ensure accuracy
-        const filteredPosts = processedPosts.filter(post => {
-            const hasCategory = post.categories.includes(category);
-            const isPublished = post.is_published;
-            
-            console.log(`📝 Frontend: Post "${post.title}": categories=[${post.categories.join(', ')}], has ${category}: ${hasCategory}, published: ${isPublished}`);
-            
-            if (!hasCategory) {
-                console.warn(`⚠️ Frontend: Post "${post.title}" doesn't contain category ${category}, has:`, post.categories);
-            }
-            
-            if (!isPublished) {
-                console.warn(`⚠️ Frontend: Post "${post.title}" is not published`);
-            }
-            
-            return hasCategory && isPublished;
-        });
-        
-        console.log(`✅ Frontend: Filtered posts for ${category}:`, filteredPosts.length);
-        
-        // Log sample posts for debugging
-        if (filteredPosts.length > 0) {
-            filteredPosts.slice(0, 3).forEach(post => {
-                console.log(`📄 Sample post: "${post.title}" - categories: [${post.categories.join(', ')}]`);
-            });
-        } else {
-            console.warn(`⚠️ No posts found for category ${category}. This might indicate a backend issue.`);
-        }
-        
-        return filteredPosts;
-        
-    } catch (error: unknown) {
-        console.error(`❌ Frontend: Error fetching posts for category ${category}:`, error);
-        return [];
-    }
-}
+  return (
+    <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${
+      error
+        ? "border-red-300 shadow-sm shadow-red-100"
+        : "border-gray-200 hover:border-gray-300 focus-within:border-blue-400"
+    } ${className}`} style={{ height: minHeight + 150 }}>
+      
+      {/* Toolbar */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          
+          {/* History */}
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().undo().run()}
+              disabled={!editor.can().undo()}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().redo().run()}
+              disabled={!editor.can().redo()}
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo className="h-4 w-4" />
+            </ToolbarButton>
+          </ToolbarGroup>
 
-    async updatePost(id: string, data: Partial<BlogPostFormData>): Promise<BlogPost> {
-        try {
-            console.log("📝 Updating blog post:", id);
-            
-            if (data.uploaded_image && data.uploaded_image_filename && data.uploaded_image_content_type) {
-                const imageData: UploadedImageData = {
-                    base64: data.uploaded_image,
-                    filename: data.uploaded_image_filename,
-                    contentType: data.uploaded_image_content_type,
-                    size: data.uploaded_image.length
-                };
-                
-                const validationError = this.validateImageData(imageData);
-                if (validationError) {
-                    throw new Error(`Image validation failed: ${validationError.message}`);
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Format Dropdown */}
+          <ToolbarGroup>
+            <FormatDropdown
+              isOpen={isFormatDropdownOpen}
+              onToggle={() => setIsFormatDropdownOpen(!isFormatDropdownOpen)}
+              currentLabel={currentFormat.label}
+              options={BLOCK_FORMATS}
+              onSelect={setFormat}
+              disabled={disabled}
+            />
+          </ToolbarGroup>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Text Formatting */}
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              isActive={editor.isActive('bold')}
+              title="Bold (Ctrl+B)"
+            >
+              <Bold className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              isActive={editor.isActive('italic')}
+              title="Italic (Ctrl+I)"
+            >
+              <Italic className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              isActive={editor.isActive('underline')}
+              title="Underline (Ctrl+U)"
+            >
+              <UnderlineIcon className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              isActive={editor.isActive('strike')}
+              title="Strikethrough"
+            >
+              <Strikethrough className="h-4 w-4" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Lists */}
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              isActive={editor.isActive('bulletList')}
+              title="Bullet List (Tab to indent, Shift+Tab to outdent)"
+            >
+              <List className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              isActive={editor.isActive('orderedList')}
+              title="Numbered List"
+            >
+              <ListOrdered className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => {
+                if (editor) {
+                  editor.chain().focus().toggleBlockquote().run();
                 }
-            }
-            
-            const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/api/blog/${id}`, data);
-            console.log("✅ Blog post updated successfully");
-            
-            return processBlogPost(response.data.data);
-        } catch (error: unknown) {
-            console.error("❌ Error updating blog post:", error);
-            
-            if (isAxiosError(error)) {
-                if (error.response?.status === 413) {
-                    throw new Error("Image file is too large. Please compress the image and try again.");
+              }}
+              isActive={editor?.isActive('blockquote') || false}
+              title="Quote Block"
+            >
+              <Quote className="h-4 w-4" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Alignment */}
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign('left').run()}
+              isActive={editor.isActive({ textAlign: 'left' })}
+              title="Align Left"
+            >
+              <AlignLeft className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign('center').run()}
+              isActive={editor.isActive({ textAlign: 'center' })}
+              title="Align Center"
+            >
+              <AlignCenter className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign('right').run()}
+              isActive={editor.isActive({ textAlign: 'right' })}
+              title="Align Right"
+            >
+              <AlignRight className="h-4 w-4" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Links and Special */}
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={setLink}
+              isActive={editor.isActive('link')}
+              title="Insert Link"
+            >
+              <LinkIcon className="h-4 w-4" />
+            </ToolbarButton>
+            <input
+              type="color"
+              value={currentColor}
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent focus loss
+              }}
+              onChange={(e) => {
+                e.preventDefault();
+                const color = e.target.value;
+                setCurrentColor(color);
+                if (editor) {
+                  editor.chain().focus().setColor(color).run();
                 }
-                
-                if (error.response?.status === 400) {
-                    const errorData = error.response.data as ApiErrorResponse;
-                    if (errorData.message && errorData.message.includes('too large')) {
-                        throw new Error("Request payload too large. Please use a smaller image.");
-                    }
-                    throw new Error(errorData.message || "Invalid request data");
-                }
-                
-                if (error.response?.status === 404) {
-                    try {
-                        const response: AxiosResponse<BlogPostResponse> = await this.api.patch(`/blog/${id}`, data);
-                        return processBlogPost(response.data.data);
-                    } catch (altError: unknown) {
-                        throw altError;
-                    }
-                }
-            }
-            
-            throw error;
+              }}
+              className="w-8 h-8 rounded border border-gray-300 cursor-pointer bg-transparent hover:border-gray-400 transition-colors"
+              title="Text Color"
+              disabled={disabled}
+            />
+            <ToolbarButton
+              onClick={toggleCode}
+              isActive={editor.isActive('code')}
+              title="Inline Code"
+            >
+              <CodeIcon className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={clearFormatting}
+              title="Clear Formatting"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </ToolbarButton>
+          </ToolbarGroup>
+
+          <div className="w-px h-6 bg-gray-300" />
+
+          {/* Preview Toggle */}
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent focus loss
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsPreview(!isPreview);
+            }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150 ${
+              isPreview 
+                ? "bg-blue-500 text-white shadow-md hover:bg-blue-600" 
+                : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-200"
+            } active:scale-95`}
+            disabled={disabled}
+          >
+            {isPreview ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <span className="text-sm font-medium">
+              {isPreview ? "Edit" : "Preview"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Editor Content */}
+      <div className="bg-white flex-1 min-h-0 relative">
+        {isPreview ? (
+          <div className="h-full overflow-y-auto">
+            <div 
+              className="prose max-w-none p-6 text-black leading-relaxed"
+              dangerouslySetInnerHTML={{ 
+                __html: value || `<p class="text-gray-500 italic">${placeholder}</p>` 
+              }}
+            />
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <EditorContent 
+              editor={editor} 
+              className="h-full"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Status Bar */}
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-2 bg-gray-50 border-t text-xs text-gray-500">
+        <div className="flex items-center gap-4">
+          <span>{characterCount} characters</span>
+          <span>{wordCount} words</span>
+          {editor && (
+            <span>
+              Lines: {editor.state.doc.content.size > 0 ? editor.state.doc.textContent.split('\n').length : 1}
+            </span>
+          )}
+        </div>
+        {!isPreview && (
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>Tab: indent • Shift+Tab: outdent</span>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Styles */}
+      <style jsx global>{`
+        .ProseMirror {
+          outline: none;
+          min-height: ${minHeight}px;
         }
-    }
-
-    async deletePost(id: string): Promise<void> {
-        try {
-            console.log("🗑️ Deleting blog post:", id);
-            await this.api.delete(`/api/blog/${id}`);
-            console.log("✅ Blog post deleted successfully");
-            return;
-        } catch (error: unknown) {
-            if (isAxiosError(error) && error.response?.status === 404) {
-                try {
-                    await this.api.delete(`/blog/${id}`);
-                    console.log("✅ Blog post deleted via alternative endpoint");
-                    return;
-                } catch (altError: unknown) {
-                    throw altError;
-                }
-            }
-            
-            console.error("❌ Error deleting blog post:", error);
-            throw error;
-        }
-    }
-
-    async getAllPosts(query?: BlogPostQuery): Promise<{ posts: BlogPost[]; count: number; totalPages: number }> {
-        try {
-            console.log("🔍 Fetching all posts with query:", query);
-            const params = new URLSearchParams();
-            
-            if (query?.page) params.append("page", query.page.toString());
-            if (query?.limit) params.append("limit", query.limit.toString());
-            if (query?.search) params.append("search", query.search);
-            if (query?.isPublished !== undefined) params.append("isPublished", query.isPublished.toString());
-            if (query?.isFeatured !== undefined) params.append("isFeatured", query.isFeatured.toString());
-            if (query?.categories && query.categories.length > 0) {
-                query.categories.forEach(category => params.append("categories", category));
-            }
-
-            const queryString = params.toString();
-            const endpoint = queryString ? `/api/blog?${queryString}` : "/api/blog";
-            
-            const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
-            
-            const rawPosts = response.data.data;
-            const processedPosts = processBlogPosts(rawPosts);
-            
-            console.log("✅ All posts fetched:", processedPosts.length);
-            
-            return {
-                posts: processedPosts,
-                count: response.data.count || 0,
-                totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
-            };
-        } catch (error: unknown) {
-            console.error("❌ Error fetching all posts:", error);
-            
-            if (isAxiosError(error) && error.response?.status === 404) {
-                try {
-                    const params = new URLSearchParams();
-                    if (query?.page) params.append("page", query.page.toString());
-                    if (query?.limit) params.append("limit", query.limit.toString());
-                    if (query?.search) params.append("search", query.search);
-                    if (query?.isPublished !== undefined) params.append("isPublished", query.isPublished.toString());
-                    if (query?.isFeatured !== undefined) params.append("isFeatured", query.isFeatured.toString());
-                    if (query?.categories && query.categories.length > 0) {
-                        query.categories.forEach(category => params.append("categories", category));
-                    }
-
-                    const qs = params.toString();
-                    const endpoint = qs ? `/blog?${qs}` : "/blog";
-                    
-                    const response: AxiosResponse<BlogResponse> = await this.api.get(endpoint);
-                    const rawPosts = response.data.data;
-                    const processedPosts = processBlogPosts(rawPosts);
-                    
-                    return {
-                        posts: processedPosts,
-                        count: response.data.count || 0,
-                        totalPages: Math.ceil((response.data.count || 0) / (query?.limit || 10)),
-                    };
-                } catch (altError: unknown) {
-                    throw altError;
-                }
-            }
-            
-            throw error;
-        }
-    }
-
-    async getPostById(id: string): Promise<BlogPost> {
-        try {
-            console.log("🔍 Fetching post by ID:", id);
-            const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/api/blog/${id}`);
-            console.log("✅ Post fetched by ID");
-            
-            return processBlogPost(response.data.data);
-        } catch (error: unknown) {
-            if (isAxiosError(error) && error.response?.status === 404) {
-                try {
-                    const response: AxiosResponse<BlogPostResponse> = await this.api.get(`/blog/${id}`);
-                    return processBlogPost(response.data.data);
-                } catch (altError: unknown) {
-                    throw altError;
-                }
-            }
-            
-            console.error("❌ Error fetching post by ID:", error);
-            throw error;
-        }
-    }
-
-    async getStatistics(): Promise<BlogStatistics> {
-        try {
-            console.log("📊 Fetching blog statistics");
-            const response: AxiosResponse<{ data: BlogStatistics }> = await this.api.get("/api/blog/statistics");
-            console.log("✅ Statistics fetched");
-            return response.data.data;
-        } catch (error: unknown) {
-            if (isAxiosError(error) && error.response?.status === 404) {
-                try {
-                    const response: AxiosResponse<{ data: BlogStatistics }> = await this.api.get("/blog/statistics");
-                    return response.data.data;
-                } catch (altError: unknown) {
-                    throw altError;
-                }
-            }
-            
-            console.error("❌ Error fetching blog statistics:", error);
-            throw error;
-        }
-    }
-
-    // ===========================================
-    // UTILITY METHODS
-    // ===========================================
-
-    getCategoryLabel(category: BlogCategory): string {
-        const labels: Record<BlogCategory, string> = {
-            [BlogCategory.NEWSROOM]: "Newsroom",
-            [BlogCategory.THOUGHT_PIECES]: "Thought Pieces",
-            [BlogCategory.ACHIEVEMENTS]: "Achievements",
-            [BlogCategory.AWARDS_RECOGNITION]: "Awards & Recognition"
-        };
-        return labels[category] || category;
-    }
-
-    getCategoryPath(category: BlogCategory): string {
-        const paths: Record<BlogCategory, string> = {
-            [BlogCategory.NEWSROOM]: "/newsroom",
-            [BlogCategory.THOUGHT_PIECES]: "/newsroom/thought-pieces",
-            [BlogCategory.ACHIEVEMENTS]: "/newsroom/achievements",
-            [BlogCategory.AWARDS_RECOGNITION]: "/newsroom/awards-recognition"
-        };
-        return paths[category] || "/newsroom";
-    }
-
-    getCategoryDescription(category: BlogCategory): string {
-        const descriptions: Record<BlogCategory, string> = {
-            [BlogCategory.NEWSROOM]: "Latest news and updates from our company",
-            [BlogCategory.THOUGHT_PIECES]: "In-depth analysis and thought leadership articles",
-            [BlogCategory.ACHIEVEMENTS]: "Milestones, successes, and company achievements",
-            [BlogCategory.AWARDS_RECOGNITION]: "Awards, recognitions, and industry accolades"
-        };
-        return descriptions[category] || "";
-    }
-
-    formatDate(dateString: string): string {
-        try {
-            return new Date(dateString).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-            });
-        } catch (error: unknown) {
-            console.error("Error formatting date:", error);
-            return "Invalid date";
-        }
-    }
-
-    formatDateTime(dateString: string): string {
-        try {
-            return new Date(dateString).toLocaleString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-        } catch (error: unknown) {
-            console.error("Error formatting datetime:", error);
-            return "Invalid date";
-        }
-    }
-
-    getExcerpt(post: BlogPost, maxLength: number = 150): string {
-        if (post.excerpt) {
-            return post.excerpt;
-        }
-
-        // Strip HTML tags and extract text content
-        const plainText = post.content.replace(/<[^>]*>/g, "");
-        if (plainText.length <= maxLength) {
-            return plainText;
-        }
-
-        return plainText.substring(0, maxLength).trim() + "...";
-    }
-
-    getAuthorName(post: BlogPost): string {
-        if (!post.author) {
-            return "Unknown Author";
-        }
-        return `${post.author.first_name} ${post.author.last_name}`;
-    }
-
-    getAuthorInitials(post: BlogPost): string {
-        if (!post.author) {
-            return "UA";
-        }
-        return `${post.author.first_name.charAt(0)}${post.author.last_name.charAt(0)}`;
-    }
-
-    validateImageUrl(url: string): boolean {
-        try {
-            new URL(url);
-            return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
-        } catch (error: unknown) {
-            console.error("Error validating image URL:", error);
-            return false;
-        }
-    }
-
-    truncateTitle(title: string, maxLength: number = 60): string {
-        if (title.length <= maxLength) {
-            return title;
-        }
-        return title.substring(0, maxLength).trim() + "...";
-    }
-
-    generateSlug(title: string): string {
-        return title
-            .toLowerCase()
-            .trim()
-            .replace(/[^\w\s-]/g, "") // Remove special characters
-            .replace(/[\s_-]+/g, "-") // Replace spaces and underscores with hyphens
-            .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
-    }
-
-    isPostPublished(post: BlogPost): boolean {
-        return post.is_published && !!post.published_at;
-    }
-
-    getReadingTime(content: string): number {
-        // Average reading speed: 225 words per minute
-        const wordsPerMinute = 225;
-        const wordCount = content.trim().split(/\s+/).length;
-        const readingTime = Math.ceil(wordCount / wordsPerMinute);
-        return Math.max(1, readingTime);
-    }
-
-    formatReadingTime(content: string): string {
-        const minutes = this.getReadingTime(content);
-        return `${minutes} min read`;
-    }
-
-    formatViewCount(viewCount: number): string {
-        if (viewCount < 1000) {
-            return viewCount.toString();
-        } else if (viewCount < 1000000) {
-            return `${(viewCount / 1000).toFixed(1)}k`;
-        } else {
-            return `${(viewCount / 1000000).toFixed(1)}M`;
-        }
-    }
-
-    // Image utility methods
-    getMainImage(post: BlogPost): string | null {
-        // Prioritize uploaded image over featured image
-        return post.uploaded_image || post.featured_image || null;
-    }
-
-    hasMainImage(post: BlogPost): boolean {
-        return !!(post.uploaded_image || post.featured_image);
-    }
-
-    getAlternativeImage(post: BlogPost): string {
-        if (post.uploaded_image_filename) {
-            return post.uploaded_image_filename;
-        }
-        return `Image for ${post.title}`;
-    }
-
-    // Convert base64 to blob URL for better performance (optional)
-    createImageBlobUrl(base64: string): string {
-        try {
-            const byteCharacters = atob(base64.split(',')[1]);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray]);
-            return URL.createObjectURL(blob);
-        } catch (error: unknown) {
-            console.error('Error creating blob URL:', error);
-            return base64; // Fallback to base64
-        }
-    }
-
-    // Format file size for display
-    formatFileSize(bytes: number): string {
-        if (bytes === 0) return '0 Bytes';
         
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // Estimate compressed size
-    estimateCompressedSize(originalSize: number): string {
-        // Rough estimation: 30-70% reduction depending on image content
-        const estimatedSize = originalSize * 0.5; // 50% reduction estimate
-        return this.formatFileSize(estimatedSize);
-    }
-
-    // Category utility methods with proper type safety
-    getPostCategories(post: BlogPost): BlogCategory[] {
-        return post.categories; // Already processed to be array
-    }
-
-    hasCategory(post: BlogPost, category: BlogCategory): boolean {
-        return post.categories.includes(category);
-    }
-
-    filterPostsByCategory(posts: BlogPost[], category: BlogCategory): BlogPost[] {
-        return posts.filter(post => this.hasCategory(post, category));
-    }
-
-    // Connection test method
-    async testConnection(): Promise<{ success: boolean; message: string; details?: unknown }> {
-        console.log("🔗 Testing API connection...");
-        
-        try {
-            const response: AxiosResponse<unknown> = await this.publicApi.get('/health', { timeout: 5000 });
-            return {
-                success: true,
-                message: "API connection successful",
-                details: response.data
-            };
-        } catch (error: unknown) {
-            logErrorDetails("Connection Test Failed", error);
-            
-            if (isAxiosError(error)) {
-                if (error.code === "ECONNREFUSED") {
-                    return {
-                        success: false,
-                        message: "Connection refused - backend server is not running",
-                        details: { baseURL: this.baseURL, error: error.message }
-                    };
-                }
-                
-                if (error.code === "ECONNABORTED") {
-                    return {
-                        success: false,
-                        message: "Connection timeout - backend server is not responding",
-                        details: { baseURL: this.baseURL, timeout: error.config?.timeout }
-                    };
-                }
-                
-                return {
-                    success: false,
-                    message: `API error: ${error.message}`,
-                    details: { 
-                        status: error.response?.status,
-                        baseURL: this.baseURL 
-                    }
-                };
-            }
-            
-            return {
-                success: false,
-                message: "Unknown connection error",
-                details: { error: String(error) }
-            };
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #9ca3af;
+          pointer-events: none;
+          height: 0;
         }
-    }
-}
 
-// Export the singleton instance
-export const blogService = new BlogService();
+        .ProseMirror h1 {
+          font-size: 2.5em !important;
+          font-weight: 700 !important;
+          margin: 0.8em 0 0.4em 0 !important;
+          line-height: 1.2 !important;
+          color: #111827 !important;
+        }
 
-// Export utility functions for external use
-export { normalizeCategories, processBlogPost, processBlogPosts };
+        .ProseMirror h2 {
+          font-size: 2em !important;
+          font-weight: 600 !important;
+          margin: 0.7em 0 0.35em 0 !important;
+          line-height: 1.3 !important;
+          color: #1f2937 !important;
+        }
+
+        .ProseMirror h3 {
+          font-size: 1.5em !important;
+          font-weight: 600 !important;
+          margin: 0.6em 0 0.3em 0 !important;
+          line-height: 1.4 !important;
+          color: #374151 !important;
+        }
+
+        .ProseMirror h4 {
+          font-size: 1.25em !important;
+          font-weight: 600 !important;
+          margin: 0.5em 0 0.25em 0 !important;
+          line-height: 1.4 !important;
+          color: #4b5563 !important;
+        }
+
+        .ProseMirror p {
+          margin: 0.5em 0 !important;
+          line-height: 1.6 !important;
+          color: #374151 !important;
+        }
+
+        .ProseMirror blockquote {
+          border-left: 4px solid #3b82f6 !important;
+          padding: 1em 1.5em !important;
+          margin: 1.5em 0 !important;
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+          border-radius: 0 0.5rem 0.5rem 0 !important;
+          font-style: italic !important;
+          color: #4b5563 !important;
+          position: relative !important;
+        }
+
+        .ProseMirror blockquote::before {
+          content: '"' !important;
+          font-size: 4em !important;
+          color: #cbd5e1 !important;
+          position: absolute !important;
+          top: -0.2em !important;
+          left: 0.3em !important;
+          font-family: Georgia, serif !important;
+          line-height: 1 !important;
+        }
+
+        .ProseMirror blockquote p {
+          margin: 0.5em 0 !important;
+          position: relative !important;
+          z-index: 1 !important;
+        }
+
+        /* Enhanced nested bullet list styles */
+        .ProseMirror ul {
+          padding-left: 1.5em !important;
+          margin: 1em 0 !important;
+          list-style: none !important;
+        }
+
+        .ProseMirror ul li {
+          position: relative !important;
+          margin: 0.5em 0 !important;
+          line-height: 1.6 !important;
+          padding-left: 1.5em !important;
+        }
+
+        /* Level 1: Filled circle (bullet) */
+        .ProseMirror ul li::before {
+          content: "•" !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          color: #374151 !important;
+          font-weight: bold !important;
+          font-size: 1.2em !important;
+          line-height: 1.3 !important;
+        }
+
+        /* Level 2: Filled square */
+        .ProseMirror ul ul li::before {
+          content: "▪" !important;
+          font-size: 1em !important;
+          top: 0.1em !important;
+        }
+
+        /* Level 3: Hollow circle */
+        .ProseMirror ul ul ul li::before {
+          content: "◦" !important;
+          font-size: 1.1em !important;
+          top: 0.05em !important;
+        }
+
+        /* Level 4+: Small filled circle */
+        .ProseMirror ul ul ul ul li::before {
+          content: "‣" !important;
+          font-size: 1em !important;
+          top: 0.1em !important;
+        }
+
+        .ProseMirror ol {
+          padding-left: 1.5em !important;
+          margin: 1em 0 !important;
+          list-style-type: decimal !important;
+        }
+
+        .ProseMirror ol li {
+          margin: 0.5em 0 !important;
+          line-height: 1.6 !important;
+          padding-left: 0.5em !important;
+        }
+
+        .ProseMirror strong {
+          font-weight: 700 !important;
+        }
+
+        .ProseMirror em {
+          font-style: italic !important;
+        }
+
+        .ProseMirror u {
+          text-decoration: underline !important;
+        }
+
+        .ProseMirror s {
+          text-decoration: line-through !important;
+        }
+
+        .ProseMirror a {
+          color: #3b82f6 !important;
+          text-decoration: underline !important;
+          cursor: pointer !important;
+          transition: color 0.15s ease !important;
+        }
+
+        .ProseMirror a:hover {
+          color: #1d4ed8 !important;
+        }
+
+        .ProseMirror code {
+          background: #f3f4f6 !important;
+          color: #dc2626 !important;
+          padding: 0.2em 0.4em !important;
+          border-radius: 0.25rem !important;
+          font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
+          font-size: 0.9em !important;
+          border: 1px solid #d1d5db !important;
+        }
+
+        .ProseMirror [data-text-align="left"] {
+          text-align: left !important;
+        }
+
+        .ProseMirror [data-text-align="center"] {
+          text-align: center !important;
+        }
+
+        .ProseMirror [data-text-align="right"] {
+          text-align: right !important;
+        }
+
+        /* Focus styles */
+        .ProseMirror:focus {
+          outline: none !important;
+        }
+
+        /* Selection styles */
+        .ProseMirror ::selection {
+          background: #bfdbfe !important;
+        }
+
+        /* Placeholder styles */
+        .ProseMirror .is-empty::before {
+          content: attr(data-placeholder) !important;
+          float: left !important;
+          color: #9ca3af !important;
+          pointer-events: none !important;
+          height: 0 !important;
+        }
+      `}</style>
+    </div>
+  );
+};

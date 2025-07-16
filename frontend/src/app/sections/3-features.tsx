@@ -123,7 +123,7 @@ const FeaturesSection: React.FC = () => {
                 <div className = "text-center mb-16">
                     <div className = "flex justify-center mb-12">
                         <h2 className = {`${dmSans.className} text-7xl font-light text-left text-gray-800`}>
-                            Our<br />Features
+                            Our Features
                         </h2>
                     </div>
                     <div className = "flex justify-center gap-14 mb-16">

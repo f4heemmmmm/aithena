@@ -221,13 +221,13 @@ const ContactPage: React.FC = () => {
                             <h3 className = {`${dmSans.className} text-3xl font-light text-gray-900 mb-6`}> Contact </h3>
                             <div className = "space-y-3">
                                 <a 
-                                    href = "mailto:hello@althena.sg" 
+                                    href = "mailto:hello@aithena.sg" 
                                     className = {`${inter.className} block text-gray-600 hover:text-blue-600 transition-colors text-sm`}
                                 >
                                     hello@aithena.sg
                                 </a>
                                 <a 
-                                    href = "https://linkedin.com/company/althena"
+                                    href = "https://linkedin.com/company/aithena"
                                     className = {`${inter.className} inline-flex items-center text-gray-600 hover:text-blue-600 transition-colors text-sm justify-center md:justify-start`}
                                     target = "_blank"
                                     rel = "noopener noreferrer"

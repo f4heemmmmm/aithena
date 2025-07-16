@@ -270,7 +270,7 @@ class BlogService {
             (config) => {
                 const token = this.getStoredToken();
                 if (token && config.headers) {
-                    config.headers.Authorization =  `Beared ${token}`;
+                    config.headers.Authorization =  `Bearer ${token}`;
                 }
 
                 const requestInformation: LoggingContext = {

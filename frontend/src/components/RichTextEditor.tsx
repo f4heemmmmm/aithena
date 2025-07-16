@@ -1,7 +1,19 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Eye, Edit3, Bold, Italic, Underline, List, ListOrdered, Link as LinkIcon, Quote, AlignLeft, AlignCenter, AlignRight, Code, Undo, Redo, ChevronDown } from "lucide-react";
+import React, { JSX, useCallback, useEffect, useState } from "react";
+import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Quote, AlignLeft, AlignCenter, AlignRight, Link as LinkIcon, Code as CodeIcon, Undo, Redo, Eye, Edit3, ChevronDown, Type, Strikethrough, Subscript, Superscript, RotateCcw } from "lucide-react";
+
+import Code from "@tiptap/extension-code";
+import Link from "@tiptap/extension-link";
+import Color from "@tiptap/extension-color";
+import StarterKit from "@tiptap/starter-kit";
+import { EditorView } from "@tiptap/pm/view";
+import ListItem from "@tiptap/extension-list-item";
+import Underline from "@tiptap/extension-underline";
+import TextStyle from "@tiptap/extension-text-style";
+import TextAlign from "@tiptap/extension-text-align";
+import CharacterCount from "@tiptap/extension-character-count";
+import { useEditor, EditorContent, Editor } from "@tiptap/react";
 
 interface RichTextEditorProps {
     value: string;
@@ -9,275 +21,290 @@ interface RichTextEditorProps {
     disabled?: boolean;
     error?: string;
     placeholder?: string;
+    className?: string;
+    minHeight?: number;
 }
 
-const COMMANDS = {
-    format: [
-        { key: "bold", icon: Bold, cmd: "bold", title: "Bold (Ctrl+B)" },
-        { key: "italic", icon: Italic, cmd: "italic", title: "Italic (Ctrl+I)" },
-        { key: "underline", icon: Underline, cmd: "underline", title: "Underline (Ctrl+U)" },
-    ],
-    lists: [
-        { key: "bulletList", icon: List, cmd: "insertUnorderedList", title: "Bullet List" },
-        { key: "orderedList", icon: ListOrdered, cmd: "insertOrderedList", title: "Numbered List" },
-        { key: "quote", icon: Quote, cmd: "formatBlock", value: "blockquote", title: "Quote" },
-    ],
-    align: [
-        { key: "alignLeft", icon: AlignLeft, cmd: "justifyLeft", title: "Align Left" },
-        { key: "alignCenter", icon: AlignCenter, cmd: "justifyCenter", title: "Align Center" },
-        { key: "alignRight", icon: AlignRight, cmd: "justifyRight", title: "Align Right" },
-    ],
-    history: [
-        { key: "undo", icon: Undo, cmd: "undo", title: "Undo (Ctrl+Z)" },
-        { key: "redo", icon: Redo, cmd: "redo", title: "Redo (Ctrl+Y)" },
-    ]
-};
+interface BlockFormat {
+    value: string;
+    label: string;
+    level?: number | null;
+}
 
-const BLOCK_FORMATS = [
-    { value: "p", label: "Normal" },
-    { value: "h1", label: "Heading 1" },
-    { value: "h2", label: "Heading 2" },
-    { value: "h3", label: "Heading 3" },
-    { value: "h4", label: "Heading 4" },
-    { value: "blockquote", label: "Quote" },
+interface DropdownProps {
+    isOpen: boolean;
+    onToggle: () => void;
+    currentLabel: string;
+    options: BlockFormat[];
+    onSelect: (format: BlockFormat) => void;
+    disabled?: boolean;
+}
+
+const BLOCK_FORMATS: BlockFormat[] = [
+    { value: "paragraph", label: "Normal", level: null },
+    { value: "heading", label: "Heading 1", level: 1 },
+    { value: "heading", label: "Heading 2", level: 2 },
+    { value: "heading", label: "Heading 3", level: 3 },
+    { value: "heading", label: "Heading 4", level: 4 },
+    { value: "blockquote", label: "Quote", level: null },
 ];
 
-const FONT_SIZES = [
-    { value: "1", label: "Small" },
-    { value: "3", label: "Normal" },
-    { value: "4", label: "Large" },
-    { value: "5", label: "X-Large" },
-];
-
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabled = false, error, placeholder = "Start writing..." }) => {
-    const editorRef = useRef<HTMLDivElement>(null);
-    const [isPreview, setIsPreview] = useState(false);
-    const [currentSize, setCurrentSize] = useState("3");
-    const [currentFormat, setCurrentFormat] = useState("p");
-    const [activeStates, setActiveStates] = useState<Set<string>>(new Set());
+const FormatDropdown: React.FC<DropdownProps> = ({ isOpen, onToggle, currentLabel, options, onSelect, disabled }) => {
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (editorRef.current && editorRef.current.innerHTML !== value && !isPreview) {
-            editorRef.current.innerHTML = value || "";
-        }
-    }, [value, isPreview]);
-
-    const indentListItem = useCallback((listItem: Element) => {
-        const parentList = listItem.parentNode as Element;
-        const previousSibling = listItem.previousElementSibling;
-        
-        if (previousSibling && previousSibling.tagName.toLowerCase() === "li") {
-            let nestedList = previousSibling.querySelector("ul, ol") as HTMLElement;
-            
-            if (!nestedList) {
-                const listType = parentList.tagName.toLowerCase();
-                nestedList = document.createElement(listType) as HTMLElement;
-                if (nestedList.style) {
-                    nestedList.style.listStyleType = listType === "ul" ? "circle" : "lower-alpha";
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                if (isOpen) {
+                    onToggle();
                 }
-                previousSibling.appendChild(nestedList);
-            }
-            nestedList.appendChild(listItem);
-        }
-    }, []);
-
-    const outdentListItem = useCallback((listItem: Element) => {
-        const parentList = listItem.parentNode as Element;
-        const grandParentListItem = parentList?.parentNode as Element;
-        const greatGrandParentList = grandParentListItem?.parentNode as Element;
-        
-        if (grandParentListItem && grandParentListItem.tagName.toLowerCase() === "li" && 
-            greatGrandParentList && (greatGrandParentList.tagName.toLowerCase() === "ul" || greatGrandParentList.tagName.toLowerCase() === "ol")) {
-            
-            const nextSibling = grandParentListItem.nextElementSibling;
-            if (nextSibling) {
-                greatGrandParentList.insertBefore(listItem, nextSibling);
-            } else {
-                greatGrandParentList.appendChild(listItem);
-            }
-            
-            if (parentList.children.length === 0) {
-                parentList.remove();
-            }
-        }
-    }, []);
-
-    const updateStates = useCallback(() => {
-        const states = new Set<string>();
-        const checkStates = ["bold", "italic", "underline", "insertUnorderedList", "insertOrderedList"];
-
-        checkStates.forEach(state => {
-            try {
-                if (document.queryCommandState(state)) {
-                    states.add(state === "insertUnorderedList" ? "bulletList" :
-                        state === "insertOrderedList" ? "numberedList" : state);
-                }
-            } catch (e) {
-                // Silently handle unsupported commands
-            }
-        });
-
-        try {
-            const selection = window.getSelection();
-
-            if (selection && selection.rangeCount > 0) {
-                let element: Node | null = selection.getRangeAt(0).startContainer;
-                if (element.nodeType === Node.TEXT_NODE) {
-                    element = element.parentNode;
-                }
-
-                while (element && element !== editorRef.current) {
-                    if (element.nodeType === Node.ELEMENT_NODE) {
-                        const tagName = (element as Element).tagName?.toLowerCase();
-                        if (tagName && ["h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "blockquote"].includes(tagName)) {
-                            setCurrentFormat(tagName === "div" ? "p" : tagName);
-                            break;
-                        }
-                    }
-                    element = element.parentNode;
-                }
-            }
-            const size = document.queryCommandValue("fontSize") || "3";
-            setCurrentSize(size);
-        } catch (e) {
-            setCurrentFormat("p");
-        }
-        setActiveStates(states);
-    }, []); 
-
-    const executeCommand = useCallback((cmd: string, value?: string) => {
-        if (disabled) {
-            return;
-        }
-
-        try {
-            if (editorRef.current) {
-                editorRef.current.focus();
-            }
-            
-            setTimeout(() => {
-                if (cmd === "formatBlock") {
-                    const selection = window.getSelection();
-                    if (selection && selection.rangeCount > 0) {
-                        if (value === "p") {
-                            document.execCommand("formatBlock", false, "<p>");
-                        } else if (value === "blockquote") {
-                            document.execCommand("formatBlock", false, "<blockquote>");
-                        } else if (value?.startsWith("h")) {
-                            document.execCommand("formatBlock", false, `<${value}>`);
-                        }
-                        setCurrentFormat(value || "p");
-                    }
-                } else {
-                    document.execCommand(cmd, false, value);
-                }
-                
-                if (editorRef.current) {
-                    onChange(editorRef.current.innerHTML || "");
-                }
-                setTimeout(updateStates, 10);
-            }, 10);
-        } catch (e) {
-            console.warn("Command failed: ", cmd, e);
-        }
-    }, [disabled, onChange, updateStates]);
-
-    const handleChange = useCallback(() => {
-        onChange(editorRef.current?.innerHTML || "");
-        updateStates();
-    }, [onChange, updateStates]);
-
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === "Tab") {
-            const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                let element: Node | null = selection.getRangeAt(0).startContainer;
-                if (element.nodeType === Node.TEXT_NODE) {
-                    element = element.parentNode;
-                }
-                
-                let listItem: Element | null = null;
-                let currentElement = element;
-                
-                while (currentElement && currentElement !== editorRef.current) {
-                    if (currentElement.nodeType === Node.ELEMENT_NODE) {
-                        const tagName = (currentElement as Element).tagName?.toLowerCase();
-                        if (tagName === "li") {
-                            listItem = currentElement as Element;
-                            break;
-                        }
-                    }
-                    currentElement = currentElement.parentNode;
-                }
-                
-                if (listItem) {
-                    e.preventDefault();
-                    
-                    if (e.shiftKey) {
-                        outdentListItem(listItem);
-                    } else {
-                        indentListItem(listItem);
-                    }
-                    
-                    onChange(editorRef.current?.innerHTML || "");
-                    setTimeout(updateStates, 10);
-                    return;
-                }
-            }
-        }
-
-        if (!e.ctrlKey && !e.metaKey) {
-            return;
-        }
-
-        const shortcuts: Record<string, () => void> = {
-            "b": () => executeCommand("bold"),
-            "i": () => executeCommand("italic"),
-            "u": () => executeCommand("underline"),
-            "z": () => executeCommand(e.shiftKey ? "redo" : "undo"),
-            "y": () => executeCommand("redo"),
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
         };
+    }, [isOpen, onToggle]);
 
-        const handler = shortcuts[e.key.toLowerCase()];
-        if (handler) {
-            e.preventDefault();
-            handler();
+    return (
+        <div className = "relative" ref = {dropdownRef}>
+            <button
+                type = "button"
+                onMouseDown = {(e) => {
+                    e.preventDefault();
+                }}
+                onClick = {(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggle();
+                }}
+                disabled = {disabled}
+                className = "flex items-center gap-2 px-3 py-2 text-sm border-0 bg-transparent rounded focus:outline-none min-w-[120px] cursor-pointer text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <Type className = "h-4 w-4" />
+                <span> {currentLabel} </span>
+                <ChevronDown className = {`h-3 w-3 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isOpen && (
+                <div className = "absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                    {options.map((format) => (
+                        <button
+                            key = {`${format.value}-${format.level || "none"}`}
+                            type = "button"
+                            onMouseDown = {(e) => {
+                                e.preventDefault();
+                            }}
+                            onClick = {(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onSelect(format);
+                                onToggle();
+                            }}
+                            className = "w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors border-none bg-transparent cursor-pointer text-gray-800"
+                        >
+                            {format.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, disabled = false, error, placeholder = "Start writing...", className = "", minHeight = 300 }) => {
+    const [isPreview, setIsPreview] = useState(false);
+    const [currentColor, setCurrentColor] = useState("#000000");
+    const [isFormatDropdownOpen, setIsFormatDropdownOpen] = useState(false);
+
+    const editor: Editor | null = useEditor({
+        extensions: [
+            StarterKit.configure({
+                heading: {
+                    levels: [1, 2, 3, 4],
+                },
+                listItem: false,
+                bulletList: {
+                    HTMLAttributes: {
+                        class: "bullet-list",
+                    },
+                },
+                orderedList: {
+                    HTMLAttributes: {
+                        class: "ordered-list",
+                    },
+                },
+            }),
+            ListItem.configure({
+                HTMLAttributes: {
+                    class: "list-item",
+                },
+            }),
+            TextStyle,
+            Color,
+            TextAlign.configure({
+                types: ["heading", "paragraph"],
+            }),
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    class: "text-blue-600 underline cursor-pointer hover:text-blue-800",
+                },
+            }),
+            Underline,
+            Code.configure({
+                HTMLAttributes: {
+                    class: "bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono border border-gray-200",
+                },
+            }),
+        ],
+        content: value,
+        editable: !disabled && !isPreview,
+        onUpdate: ({ editor }) => {
+            const html = editor.getHTML();
+            onChange(html);
+        },
+        editorProps: {
+            attributes: {
+                class: `prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-full p-6 text-gray-800 leading-relaxed`,
+                "data-placeholder": placeholder,
+                style: `min-height: ${minHeight}px`,
+            },
+            handleKeyDown: (view: EditorView, event: globalThis.KeyboardEvent): boolean => {
+                if (event.key === "Tab") {
+                    event.preventDefault();
+
+                    if (event.shiftKey) {
+                        if (editor?.commands.liftListItem("listItem")) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            },
+        },
+    });
+
+    useEffect(() => {
+        if (editor && value !== editor.getHTML()) {
+            editor.commands.setContent(value, false);
         }
-    }, [executeCommand, onChange, updateStates, indentListItem, outdentListItem]);
+    }, [value, editor]);
 
-    const insertLink = useCallback(() => {
-        const url = prompt("Enter URL:", "https://");
-        if (url && url !== "https://") {
-            const selection = window.getSelection()?.toString();
-            if (selection) {
-                executeCommand("createLink", url);
-            } else {
-                const text = prompt("Link text:", "Link") || "Link";
-                executeCommand("insertHTML", `<a href="${url}" target="_blank">${text}</a>`);
-            }
-        }
-    }, [executeCommand]);
-
-    const insertCode = useCallback(() => {
-        const selection = window.getSelection();
-        if (selection?.rangeCount) {
-            const text = selection.toString();
-            if (text) {
-                executeCommand("insertHTML", `<code>${text}</code>`);
-            }
-        }
-    }, [executeCommand]);
-
-    const handlePaste = useCallback((e: React.ClipboardEvent) => {
-        if (disabled) {
+    useEffect(() => {
+        if (!editor) {
             return;
         }
-        e.preventDefault();
-        const text = e.clipboardData.getData("text/plain");
-        executeCommand("insertText", text);
-    }, [disabled, executeCommand]);
 
-    const ToolbarButton = ({ command, isActive, onClick }: { command: any; isActive?: boolean; onClick: () => void; }) => (
+        const updateColor = (): void => {
+            const color: string | undefined = editor.getAttributes("textStyle").color;
+            if (color) {
+                setCurrentColor(color);
+            } else {
+                setCurrentColor("#000000");
+            }
+        };
+        
+        editor.on("selectionUpdate", updateColor);
+        editor.on("transaction", updateColor);
+
+        return () => {
+            editor.off("selectionUpdate", updateColor);
+            editor.off("transaction", updateColor);
+        }
+    }, [editor]);
+
+    const setLink = useCallback((): void => {
+        if (!editor) {
+            return;
+        }
+
+        const previousURL: string = editor.getAttributes("link").href || "";
+        if (previousURL) {
+            const action = window.confirm("Link already exists. Click OK to edit, Cancel to remove");
+            if (!action) {
+                editor.chain().focus().extendMarkRange("link").unsetLink().run();
+                return;
+            }
+        }
+
+        const url: string | null = window.prompt("Enter URL: ", previousURL);
+        if (url === null) {
+            return;
+        }
+        if (url === "") {
+            editor.chain().focus().extendMarkRange("link").unsetLink().run();
+            return;
+        }
+
+        const finalURL: string = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:") ? url: `https://${url}`;
+        editor.chain().focus().extendMarkRange("link").setLink({ href: finalURL }).run();
+    }, [editor]);
+
+    const toggleCode = useCallback((): void => {
+        if (!editor) {
+            return;
+        }
+        editor.chain().focus().toggleCode().run();
+    }, [editor]);
+
+    const setFormat = useCallback((format: BlockFormat): void => {
+        if (!editor) {
+            return;
+        }
+        editor.chain().focus();
+        if (format.value === "paragraph") {
+            editor.chain().focus().setParagraph().run();
+        } else if (format.value === "heading" && format.level) {
+            editor.chain().focus().setHeading({ level: format.level as 1 | 2 | 3 | 4 }).run();
+        } else if (format.value === "blockquote") {
+            editor.chain().focus().setBlockquote().run();
+        }
+    }, [editor]);
+
+    const getCurrentFormat = useCallback((): BlockFormat => {
+        if (!editor) {
+            return { value: "paragraph", label: "Normal" }
+        }
+        if (editor.isActive("heading", { level: 1 })) {
+            return { value: "heading", label: "Heading 1", level: 1 };
+        }
+        if (editor.isActive("heading", { level: 2 })) {
+            return { value: "heading", label: "Heading 2", level: 2 };
+        }
+        if (editor.isActive("heading", { level: 3 })) {
+            return { value: "heading", label: "Heading 3", level: 3 };
+        }
+        if (editor.isActive("heading", { level: 4 })) {
+            return { value: "heading", label: "Heading 4", level: 4 };
+        }
+        if (editor.isActive("blockquote")) {
+            return { value: "blockquote", label: "Quote" };
+        }
+        return { value: "paragraph", label: "Normal" };
+    }, [editor]);
+
+    const clearFormatting = useCallback((): void => {
+        if (!editor) {
+            return;
+        }
+        editor.chain().focus().clearNodes().unsetAllMarks().run();
+    }, [editor]);
+
+    if (!editor) {
+        return (
+            <div className = "flex items-center justify-center h-32 bg-gray-50 rounded-lg">
+                <div className = "text-gray-500"> Loading editor... </div>
+            </div>
+        );
+    }
+
+    const ToolbarButton = ({ onClick, isActive = false, disabled: buttonDisabled = false, title, children, className: buttonClassName = ""}: {
+        onClick: () => void;
+        isActive?: boolean;
+        disabled?: boolean;
+        title: string;
+        children: React.ReactNode;
+        className?: string;
+    }): JSX.Element => (
         <button
             type = "button"
             onMouseDown = {(e) => {
@@ -288,162 +315,230 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                 e.stopPropagation();
                 onClick();
             }}
-            className = {`p-2 rounded-md transition-colors ${
+            disabled = {disabled || buttonDisabled}
+            title = {title}
+            className = {`p-2 rounded-md transition-all duration-150 ${
                 isActive
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-100"
-            }`}
-            title = {command.title}
-            disabled = {disabled}
+                    ? "bg-blue-100 text-blue-600 shadow-sm"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+            } ${disabled || buttonDisabled ? "opacity-50 cursor-not-allowed" : "active:scale-95"} ${buttonClassName}`}
         >
-            <command.icon className = "h-4 w-4" />
+            {children}
         </button>
     );
 
-    const ToolbarGroup = ({ children }: { children: React.ReactNode }) => (
-        <div className = "flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm">
+    const ToolbarGroup = ({ children }: { children: React.ReactNode }): JSX.Element => (
+        <div className = "flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm border border-gray-100">
             {children}
         </div>
     );
 
-    const handleFormatChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        const format = e.target.value;
-        executeCommand("formatBlock", format);
-    }, [executeCommand]);
-
-    const handleSizeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        const size = e.target.value;
-        executeCommand("fontSize", size);
-    }, [executeCommand]);
-
-    const handleColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        executeCommand("foreColor", e.target.value);
-    }, [executeCommand]);
+    const currentFormat: BlockFormat = getCurrentFormat();
+    const characterCount: number = editor?.storage.characterCount?.characters() || 0;
+    const wordCount: number = editor?.storage.characterCount?.words() || 0;
 
     return (
-        <div className = {`border-2 rounded-xl overflow-hidden transition-all duration-200 flex flex-col h-96 ${
+        <div 
+            className = {`border-2 rounded-xl overflow-hidden transition-all duration-200 flex flex-col ${
             error
                 ? "border-red-300 shadow-sm shadow-red-100"
                 : "border-gray-200 hover:border-gray-300 focus-within:border-blue-400"
-        }`}>
+            } ${className}`}
+            style = {{ height: minHeight + 150 }}
+        >
             <div className = "flex-shrink-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-3">
                 <div className = "flex flex-wrap items-center gap-2">
                     <ToolbarGroup>
-                        {COMMANDS.history.map(cmd => (
-                            <ToolbarButton
-                                key = {cmd.key}
-                                command = {cmd}
-                                onClick = {() => executeCommand(cmd.cmd)}
-                            />
-                        ))}
-                    </ToolbarGroup>
-                    <div className = "w-px h-6 bg-gray-300" />
-                    <ToolbarGroup>
-                        <div className = "relative">
-                            <select
-                                value = {currentFormat}
-                                onChange = {handleFormatChange}
-                                className = "text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[100px] appearance-none cursor-pointer"
-                                disabled = {disabled}
-                            >
-                                {BLOCK_FORMATS.map(fmt => (
-                                    <option key = {fmt.value} value = {fmt.value}> {fmt.label} </option>
-                                ))}
-                            </select>
-                            <ChevronDown className = "h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-                        </div>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().undo().run()}
+                            disabled = {!editor.can().undo()}
+                            title = "Undo (Ctrl + Z)"
+                        >
+                            <Undo className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().redo().run()}
+                            disabled = {!editor.can().redo()}
+                            title = "Redo (Ctrl + Y)"
+                        >
+                            <Redo className = "h-4 w-4" />
+                        </ToolbarButton>
                     </ToolbarGroup>
 
-                    <ToolbarGroup>
-                        <div className = "relative">
-                            <select
-                                value = {currentSize}
-                                onChange = {handleSizeChange}
-                                className = "text-sm border-0 bg-transparent px-2 py-1 rounded focus:outline-none min-w-[80px] appearance-none cursor-pointer"
-                                disabled = {disabled}
-                            >
-                                {FONT_SIZES.map(size => (
-                                    <option key = {size.value} value = {size.value}> {size.label} </option>
-                                ))}
-                            </select>
-                            <ChevronDown className = "h-3 w-3 text-gray-400 absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-                        </div>
-                    </ToolbarGroup>
                     <div className = "w-px h-6 bg-gray-300" />
+
                     <ToolbarGroup>
-                        {COMMANDS.format.map(cmd => (
-                            <ToolbarButton
-                                key = {cmd.key}
-                                command = {cmd}
-                                isActive = {activeStates.has(cmd.key)}
-                                onClick = {() => executeCommand(cmd.cmd)}
-                            />
-                        ))}
+                        <FormatDropdown
+                            isOpen = {isFormatDropdownOpen}
+                            onToggle = {() => setIsFormatDropdownOpen(!isFormatDropdownOpen)}
+                            currentLabel = {currentFormat.label}
+                            options = {BLOCK_FORMATS}
+                            onSelect = {setFormat}
+                            disabled = {disabled}
+                        />
                     </ToolbarGroup>
+
                     <div className = "w-px h-6 bg-gray-300" />
-                    <ToolbarGroup>
-                        {COMMANDS.lists.map(cmd => (
-                            <ToolbarButton
-                                key = {cmd.key}
-                                command = {cmd}
-                                isActive = {activeStates.has(cmd.key)}
-                                onClick = {() => executeCommand(cmd.cmd, cmd.value)}
-                            />
-                        ))}
-                    </ToolbarGroup>
-                    <div className = "w-px h-6 bg-gray-300" />
-                    <ToolbarGroup>
-                        {COMMANDS.align.map(cmd => (
-                            <ToolbarButton
-                                key = {cmd.key}
-                                command = {cmd}
-                                onClick = {() => executeCommand(cmd.cmd)}
-                            />
-                        ))}
-                    </ToolbarGroup>
-                    <div className = "w-px h-6 bg-gray-300" />
+
                     <ToolbarGroup>
                         <ToolbarButton
-                            command = {{ icon: LinkIcon, title: "Insert Link" }}
-                            onClick = {insertLink}
-                        />
+                            onClick = {() => editor.chain().focus().toggleBold().run()}
+                            isActive = {editor.isActive("bold")}
+                            title = "Bold (Ctrl + B)"
+                        >
+                            <Bold className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().toggleItalic().run()}
+                            isActive = {editor.isActive("italic")}
+                            title = "Italic (Ctrl + I)"
+                        >
+                            <Italic className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().toggleUnderline().run()}
+                            isActive = {editor.isActive("underline")}
+                            title = "Underline (Ctrl + U)"
+                        >
+                            <UnderlineIcon className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().toggleStrike().run()}
+                            isActive = {editor.isActive("strike")}
+                            title = "Strikethrough"
+                        >
+                            <Strikethrough className = "h-4 w-4" />
+                        </ToolbarButton>
+                    </ToolbarGroup>
+
+                    <div className = "w-px h-6 bg-gray-300" />
+
+                    <ToolbarGroup>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().toggleBulletList().run()}
+                            isActive = {editor.isActive("bulletList")}
+                            title = "Bullet List (Tab to indent, Shift + Tab to outdent"
+                        >
+                            <List className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().toggleOrderedList().run()}
+                            isActive = {editor.isActive("orderedList")}
+                            title = "Numbered List"
+                        >
+                            <ListOrdered className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = { () => {
+                                if (editor) {
+                                    editor.chain().focus().toggleBlockquote().run();
+                                }
+                            }}
+                            isActive = {editor?.isActive("blockquote") || false}
+                            title = "Quote Block"
+                        >
+                            <Quote className = "h-4 w-4" />
+                        </ToolbarButton>
+                    </ToolbarGroup>
+
+                    <div className = "w-px h-6 bg-gray-300" />
+
+                    <ToolbarGroup>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().setTextAlign("left").run()}
+                            isActive = {editor.isActive({ textAligh: "left" })}
+                            title = "Align Left"
+                        >
+                            <AlignLeft className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().setTextAlign("center").run()}
+                            isActive = {editor.isActive({ textAligh: "center" })}
+                            title = "Align Center"
+                        >
+                            <AlignCenter className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {() => editor.chain().focus().setTextAlign("right").run()}
+                            isActive = {editor.isActive({ textAligh: "right" })}
+                            title = "Align Right"
+                        >
+                            <AlignRight className = "h-4 w-4" />
+                        </ToolbarButton>
+                    </ToolbarGroup>
+
+                    <div className = "w-px h-6 bg-gray-300" />
+
+                    <ToolbarGroup>
+                        <ToolbarButton
+                            onClick = {setLink}
+                            isActive = {editor.isActive("link")}
+                            title = "Insert Link"
+                        >
+                            <LinkIcon className = "h-4 w-4" />
+                        </ToolbarButton>
                         <input
                             type = "color"
-                            onChange = {handleColorChange}
-                            className = "w-8 h-8 rounded border border-gray-300 cursor-pointer"
+                            value = {currentColor}
+                            onMouseDown = {(e) => {
+                                e.preventDefault();
+                            }}
+                            onChange = {(e) => {
+                                e.preventDefault();
+                                const color = e.target.value;
+                                setCurrentColor(color);
+                                if (editor) {
+                                    editor.chain().focus().setColor(color).run();
+                                }
+                            }}
+                            className = "w-8 h-8 rounded border border-gray-300 cursor-pointer bg-transparent hover:border-gray-400 transition-colors"
                             title = "Text Color"
                             disabled = {disabled}
-                            defaultValue = "#000000"
                         />
                         <ToolbarButton
-                            command = {{ icon: Code, title: "Inline Code" }}
-                            onClick = {insertCode}
-                        />
+                            onClick = {toggleCode}
+                            isActive = {editor.isActive("code")}
+                            title = "Inline Code"
+                        >
+                            <CodeIcon className = "h-4 w-4" />
+                        </ToolbarButton>
+                        <ToolbarButton
+                            onClick = {clearFormatting}
+                            title = "Clear Formatting"
+                        >
+                            <RotateCcw className = "h-4 w-4" />
+                        </ToolbarButton>
                     </ToolbarGroup>
+
                     <div className = "w-px h-6 bg-gray-300" />
+
                     <button
                         type = "button"
-                        onMouseDown = {(e) => e.preventDefault()}
-                        onClick = {() => setIsPreview(!isPreview)}
-                        className = {`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                        onMouseDown = {(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsPreview(!isPreview);
+                        }}
+                        className = {`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150 ${
                             isPreview 
-                                ? "bg-blue-500 text-white shadow-md" 
-                                : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm"
-                        }`}
+                                ? "bg-blue-500 text-white shadow-md hover:bg-blue-600" 
+                                : "bg-white text-gray-600 hover:bg-gray-50 shadow-sm border border-gray-200"
+                        } active:scale-95`}
                         disabled = {disabled}
                     >
                         {isPreview ? <Edit3 className = "h-4 w-4" /> : <Eye className = "h-4 w-4" />}
-                        <span className = "text-sm font-medium">
+                        <span className = "text-sm font-semibold">
                             {isPreview ? "Edit" : "Preview"}
                         </span>
                     </button>
                 </div>
             </div>
-            <div className = "bg-white flex-1 min-h-0">
+
+            <div className = "bg-white flex-1 min-h-0 relative">
                 {isPreview ? (
                     <div className = "h-full overflow-y-auto">
-                        <div 
-                            className = "prose max-w-none p-6 text-black"
+                        <div
+                            className = "prose max-w-none p-6 text-black leading-relaxed"
                             dangerouslySetInnerHTML = {{ 
                                 __html: value || `<p class="text-gray-500 italic"> ${placeholder} </p>` 
                             }}
@@ -451,315 +546,228 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
                     </div>
                 ) : (
                     <div className = "h-full overflow-y-auto">
-                        <div
-                            ref = {editorRef}
-                            contentEditable = {!disabled}
-                            onInput = {handleChange}
-                            onBlur = {handleChange}
-                            onKeyDown = {handleKeyDown}
-                            onFocus = {updateStates}
-                            onMouseUp = {updateStates}
-                            onKeyUp = {updateStates}
-                            onPaste = {handlePaste}
-                            className = "p-6 min-h-full outline-none text-gray-800 leading-relaxed editor-content"
-                            suppressContentEditableWarning = {true}
-                            data-placeholder = {placeholder}
+                        <EditorContent
+                            editor = {editor}
+                            className = "h-full"
                         />
                     </div>
                 )}
             </div>
 
-            {!isPreview && (
-                <div className = "flex-shrink-0 px-6 py-2 bg-gray-50 border-t text-xs text-gray-500">
-                    {(editorRef.current?.textContent || "").length} characters
+            <div className = "flex-shrink-0 flex items-center justify-between px-6 py-2 bg-gray-50 border-t text-xs text-gray-500">
+                <div className = "flex items-center gap-4">
+                    <span> {characterCount} characters </span>
+                    <span> {wordCount} words </span>
                 </div>
-            )}
+            </div>
 
-            <style jsx global>{`
-                .editor-content:empty:before {
-                    content: attr(data-placeholder);
-                    color: #9ca3af;
-                    font-style: italic;
-                    pointer-events: none;
+            <style jsx global> {`
+                .ProseMirror {
+                outline: none;
+                min-height: ${minHeight}px;
                 }
                 
-                /* Heading Styles - Using !important to override browser defaults */
-                .editor-content h1 { 
-                    font-size: 2.5em !important; 
-                    font-weight: 700 !important; 
-                    margin: 0.8em 0 0.4em 0 !important; 
-                    line-height: 1.2 !important;
-                    color: #111827 !important;
-                    display: block !important;
-                }
-                
-                .editor-content h2 { 
-                    font-size: 2em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.7em 0 0.35em 0 !important; 
-                    line-height: 1.3 !important;
-                    color: #1f2937 !important;
-                    display: block !important;
-                }
-                
-                .editor-content h3 { 
-                    font-size: 1.5em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.6em 0 0.3em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #374151 !important;
-                    display: block !important;
-                }
-                
-                .editor-content h4 { 
-                    font-size: 1.25em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.5em 0 0.25em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #4b5563 !important;
-                    display: block !important;
-                }
-                
-                .editor-content h5 { 
-                    font-size: 1.1em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.4em 0 0.2em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #6b7280 !important;
-                    display: block !important;
-                }
-                
-                .editor-content h6 { 
-                    font-size: 1em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.3em 0 0.15em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #6b7280 !important;
-                    display: block !important;
-                }
-                
-                .editor-content p { 
-                    font-size: 1em !important;
-                    font-weight: 400 !important;
-                    margin: 0.5em 0 !important; 
-                    line-height: 1.6 !important;
-                    color: #374151 !important;
-                    display: block !important;
-                }
-                
-                .editor-content blockquote {
-                    border-left: 4px solid #3b82f6 !important;
-                    padding: 1em 1.5em !important;
-                    margin: 1em 0 !important;
-                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
-                    border-radius: 0 0.5rem 0.5rem 0 !important;
-                    font-style: italic !important;
-                    color: #4b5563 !important;
-                    display: block !important;
-                    font-size: 1em !important;
-                }
-                
-                /* Base List Styles */
-                .editor-content ul { 
-                    padding-left: 2em !important; 
-                    margin: 1em 0 !important;
-                    list-style-type: disc !important;
-                    display: block !important;
-                }
-                
-                .editor-content ol { 
-                    padding-left: 2em !important; 
-                    margin: 1em 0 !important;
-                    list-style-type: decimal !important;
-                    display: block !important;
-                }
-                
-                /* Nested List Styles */
-                .editor-content ul ul {
-                    list-style-type: circle !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror p.is-editor-empty:first-child::before {
+                content: attr(data-placeholder);
+                float: left;
+                color: #9ca3af;
+                pointer-events: none;
+                height: 0;
                 }
 
-                .editor-content ul ul ul {
-                    list-style-type: square !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror h1 {
+                font-size: 2.5em !important;
+                font-weight: 700 !important;
+                margin: 0.8em 0 0.4em 0 !important;
+                line-height: 1.2 !important;
+                color: #111827 !important;
                 }
 
-                .editor-content ol ol {
-                    list-style-type: lower-alpha !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror h2 {
+                font-size: 2em !important;
+                font-weight: 600 !important;
+                margin: 0.7em 0 0.35em 0 !important;
+                line-height: 1.3 !important;
+                color: #1f2937 !important;
                 }
 
-                .editor-content ol ol ol {
-                    list-style-type: lower-roman !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
-                }
-                
-                .editor-content li { 
-                    margin: 0.5em 0 !important; 
-                    line-height: 1.6 !important; 
-                    font-size: 1em !important;
-                    display: list-item !important;
-                    color: #374151 !important;
-                }
-                
-                .editor-content a { 
-                    color: #3b82f6 !important; 
-                    text-decoration: underline !important; 
-                }
-                
-                .editor-content code {
-                    background: #f3f4f6 !important;
-                    color: #dc2626 !important;
-                    padding: 0.2em 0.4em !important;
-                    border-radius: 0.25rem !important;
-                    font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
-                    font-size: 0.9em !important;
-                    border: 1px solid #d1d5db !important;
-                }
-                
-                .editor-content strong, .editor-content b { 
-                    font-weight: 700 !important; 
-                    color: inherit !important;
-                }
-                
-                .editor-content em, .editor-content i { 
-                    font-style: italic !important; 
-                    color: inherit !important;
-                }
-                
-                .editor-content u {
-                    text-decoration: underline !important;
-                    color: inherit !important;
-                }
-                
-                /* Ensure proper display for all block elements */
-                .editor-content div {
-                    display: block !important;
-                    margin: 0.5em 0 !important;
-                }
-                
-                /* Preview mode prose styling */
-                .prose h1 { 
-                    font-size: 2.5em !important; 
-                    font-weight: 700 !important; 
-                    margin: 0.8em 0 0.4em 0 !important; 
-                    line-height: 1.2 !important;
-                    color: #111827 !important;
-                }
-                
-                .prose h2 { 
-                    font-size: 2em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.7em 0 0.35em 0 !important; 
-                    line-height: 1.3 !important;
-                    color: #1f2937 !important;
-                }
-                
-                .prose h3 { 
-                    font-size: 1.5em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.6em 0 0.3em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #374151 !important;
-                }
-                
-                .prose h4 { 
-                    font-size: 1.25em !important; 
-                    font-weight: 600 !important; 
-                    margin: 0.5em 0 0.25em 0 !important; 
-                    line-height: 1.4 !important;
-                    color: #4b5563 !important;
-                }
-                
-                .prose p { 
-                    font-size: 1em !important;
-                    margin: 0.5em 0 !important; 
-                    line-height: 1.6 !important;
-                    color: #374151 !important;
-                }
-                
-                .prose blockquote {
-                    border-left: 4px solid #3b82f6 !important;
-                    padding: 1em 1.5em !important;
-                    margin: 1em 0 !important;
-                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
-                    border-radius: 0 0.5rem 0.5rem 0 !important;
-                    font-style: italic !important;
-                    color: #4b5563 !important;
-                }
-                
-                /* Preview mode base lists */
-                .prose ul { 
-                    padding-left: 2em !important; 
-                    margin: 1em 0 !important;
-                    list-style-type: disc !important;
-                }
-                
-                .prose ol { 
-                    padding-left: 2em !important; 
-                    margin: 1em 0 !important;
-                    list-style-type: decimal !important;
+                .ProseMirror h3 {
+                font-size: 1.5em !important;
+                font-weight: 600 !important;
+                margin: 0.6em 0 0.3em 0 !important;
+                line-height: 1.4 !important;
+                color: #374151 !important;
                 }
 
-                /* Preview mode nested lists */
-                .prose ul ul {
-                    list-style-type: circle !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror h4 {
+                font-size: 1.25em !important;
+                font-weight: 600 !important;
+                margin: 0.5em 0 0.25em 0 !important;
+                line-height: 1.4 !important;
+                color: #4b5563 !important;
                 }
 
-                .prose ul ul ul {
-                    list-style-type: square !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror p {
+                margin: 0.5em 0 !important;
+                line-height: 1.6 !important;
+                color: #374151 !important;
                 }
 
-                .prose ol ol {
-                    list-style-type: lower-alpha !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror blockquote {
+                border-left: 4px solid #3b82f6 !important;
+                padding: 1em 1.5em !important;
+                margin: 1.5em 0 !important;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+                border-radius: 0 0.5rem 0.5rem 0 !important;
+                font-style: italic !important;
+                color: #4b5563 !important;
+                position: relative !important;
                 }
 
-                .prose ol ol ol {
-                    list-style-type: lower-roman !important;
-                    margin: 0.25em 0 !important;
-                    padding-left: 1.5em !important;
+                .ProseMirror blockquote::before {
+                content: '"' !important;
+                font-size: 4em !important;
+                color: #cbd5e1 !important;
+                position: absolute !important;
+                top: -0.2em !important;
+                left: 0.3em !important;
+                font-family: Georgia, serif !important;
+                line-height: 1 !important;
                 }
-                
-                .prose li { 
-                    margin: 0.5em 0 !important; 
-                    line-height: 1.6 !important;
-                    display: list-item !important;
+
+                .ProseMirror blockquote p {
+                margin: 0.5em 0 !important;
+                position: relative !important;
+                z-index: 1 !important;
                 }
-                
-                .prose a { 
-                    color: #3b82f6 !important; 
-                    text-decoration: underline !important; 
+
+                /* Enhanced nested bullet list styles */
+                .ProseMirror ul {
+                padding-left: 1.5em !important;
+                margin: 1em 0 !important;
+                list-style: none !important;
                 }
-                
-                .prose strong, .prose b { 
-                    font-weight: 700 !important; 
+
+                .ProseMirror ul li {
+                position: relative !important;
+                margin: 0.5em 0 !important;
+                line-height: 1.6 !important;
+                padding-left: 1.5em !important;
                 }
-                
-                .prose em, .prose i { 
-                    font-style: italic !important; 
+
+                /* Level 1: Filled circle (bullet) */
+                .ProseMirror ul li::before {
+                content: "•" !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                color: #374151 !important;
+                font-weight: bold !important;
+                font-size: 1.2em !important;
+                line-height: 1.3 !important;
                 }
-                
-                .prose code {
-                    background: #f3f4f6 !important;
-                    color: #dc2626 !important;
-                    padding: 0.2em 0.4em !important;
-                    border-radius: 0.25rem !important;
-                    font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
-                    font-size: 0.9em !important;
-                    border: 1px solid #d1d5db !important;
+
+                /* Level 2: Filled square */
+                .ProseMirror ul ul li::before {
+                content: "▪" !important;
+                font-size: 1em !important;
+                top: 0.1em !important;
                 }
-            `}</style>
+
+                /* Level 3: Hollow circle */
+                .ProseMirror ul ul ul li::before {
+                content: "◦" !important;
+                font-size: 1.1em !important;
+                top: 0.05em !important;
+                }
+
+                /* Level 4+: Small filled circle */
+                .ProseMirror ul ul ul ul li::before {
+                content: "‣" !important;
+                font-size: 1em !important;
+                top: 0.1em !important;
+                }
+
+                .ProseMirror ol {
+                padding-left: 1.5em !important;
+                margin: 1em 0 !important;
+                list-style-type: decimal !important;
+                }
+
+                .ProseMirror ol li {
+                margin: 0.5em 0 !important;
+                line-height: 1.6 !important;
+                padding-left: 0.5em !important;
+                }
+
+                .ProseMirror strong {
+                font-weight: 700 !important;
+                }
+
+                .ProseMirror em {
+                font-style: italic !important;
+                }
+
+                .ProseMirror u {
+                text-decoration: underline !important;
+                }
+
+                .ProseMirror s {
+                text-decoration: line-through !important;
+                }
+
+                .ProseMirror a {
+                color: #3b82f6 !important;
+                text-decoration: underline !important;
+                cursor: pointer !important;
+                transition: color 0.15s ease !important;
+                }
+
+                .ProseMirror a:hover {
+                color: #1d4ed8 !important;
+                }
+
+                .ProseMirror code {
+                background: #f3f4f6 !important;
+                color: #dc2626 !important;
+                padding: 0.2em 0.4em !important;
+                border-radius: 0.25rem !important;
+                font-family: "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", monospace !important;
+                font-size: 0.9em !important;
+                border: 1px solid #d1d5db !important;
+                }
+
+                .ProseMirror [data-text-align="left"] {
+                text-align: left !important;
+                }
+
+                .ProseMirror [data-text-align="center"] {
+                text-align: center !important;
+                }
+
+                .ProseMirror [data-text-align="right"] {
+                text-align: right !important;
+                }
+
+                /* Focus styles */
+                .ProseMirror:focus {
+                outline: none !important;
+                }
+
+                /* Selection styles */
+                .ProseMirror ::selection {
+                background: #bfdbfe !important;
+                }
+
+                /* Placeholder styles */
+                .ProseMirror .is-empty::before {
+                content: attr(data-placeholder) !important;
+                float: left !important;
+                color: #9ca3af !important;
+                pointer-events: none !important;
+                height: 0 !important;
+                }
+            `} </style>
         </div>
     );
 };
