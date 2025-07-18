@@ -7,6 +7,7 @@
 
 body {
   padding-top: var(--nav-height, 120px);
+  zoom: 0.8;
 }
 
 @theme inline {
