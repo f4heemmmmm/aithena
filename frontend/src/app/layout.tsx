@@ -14,11 +14,11 @@ export default function RootLayout({children}: { children: React.ReactNode; }) {
     const pathName = usePathname();
     const hideFooter = pathName === "/login";
     return (
-        <html lang = "en">
-            <body className = {inter.className}>
+        <html lang = "en" className="m-0 p-0 h-full">
+            <body className = {`${inter.className} m-0 p-0 h-full min-h-screen`}>
                 <AuthProvider>
                     <Navigation />
-                    <main>
+                    <main className="ml-16 min-h-screen">
                         {children}
                     </main>
                     {!hideFooter && <Footer />}
